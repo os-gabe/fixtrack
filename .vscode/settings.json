@@ -1,0 +1,12 @@
+{
+    "editor.formatOnSave": true,
+    "editor.renderWhitespace": "boundary",
+    "editor.rulers": [
+        95
+    ],
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.linting.enabled": true,
+    "python.formatting.provider": "yapf",
+    "python.pythonPath": "${env:HOME}/Envs/fixtrack/bin/python"
+}

@@ -1,0 +1,16 @@
+flake8
+h5py
+ipdb
+ipython
+matplotlib
+numpy
+numpy-quaternion
+opencv-python
+pre-commit
+PyQt5
+pytest
+scipy
+tqdm
+virtualenvwrapper
+vispy
+yapf

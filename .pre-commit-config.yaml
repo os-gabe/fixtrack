@@ -1,0 +1,38 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks.git
+    rev: v2.5.0
+    hooks:
+    -   id: check-added-large-files
+    -   id: check-merge-conflict
+    -   id: check-symlinks
+    -   id: check-docstring-first
+    -   id: check-json
+    -   id: check-yaml
+    -   id: debug-statements
+    -   id: name-tests-test
+    -   id: requirements-txt-fixer
+-   repo: https://gitlab.com/pycqa/flake8
+    rev: 3.7.9
+    hooks:
+    -   id: flake8
+-   repo: local
+    hooks:
+    -   id: yapf
+        name: yapf
+        entry: yapf
+        language: python
+        files: \.py$
+        args:
+        - --in-place
+    -   id: py.test
+        name: py.test
+        language: system
+        entry: sh -c py.test
+        files: ''
+        stages:
+        - commit
+        - push
+default_language_version:
+    python: python3.6
+exclude: .*_pb2\.py$
+

@@ -1,0 +1,6 @@
+[style]
+based_on_style = pep8
+column_limit = 95
+DEDENT_CLOSING_BRACKETS = True
+SPLIT_ARGUMENTS_WHEN_COMMA_TERMINATED = True
+# COALESCE_BRACKETS = True
