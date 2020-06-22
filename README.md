@@ -27,7 +27,7 @@ apt install python3-tk libsm6 pkg-config libpq-dev \
     libavutil-dev libswscale-dev libswresample-dev \
     libavfilter-dev libblas-dev ffmpeg python3-dev
 ```
-I don't think all of these system dependencies are actually necessary but I have not had time to figure out which ones are or not.
+I don't think all of these system dependencies are actually necessary but I have not had time to figure out which ones are or not. On a mac you would install these with Homebrew package manager https://brew.sh/ rather than apt.
 
 **Python Environment**
 
@@ -35,7 +35,7 @@ Install virtualenvwrapper
 ```bash
 apt install virtualenvwrapper
 ```
-Set up virtualenvwrapper and your python paths by putting these at the end of your ~/.bashrc file.
+Set up virtualenvwrapper and your python paths by putting these at the end of your ~/.bashrc file. On a Mac you would edit `~/.bash_profile` rather than `~/.bashrc`.
 Don't forget to source it or open a new terminal afterwards.
 ```
 source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
@@ -56,6 +56,11 @@ called `fixtrack` by follow these instructions.
 ```bash
 mkvirtualenv --python=/usr/bin/python3 fixtrack
 ```
+Or on a Mac
+```bash
+mkvirtualenv --python=/usr/local/bin/python3 fixtrack
+```
+
 (Note that the name of the virtualenv created is fixtrack, which is independent of the repo name fixtrack, but convenient.)
 
 Now activate your virtual environment (it may already be active):
