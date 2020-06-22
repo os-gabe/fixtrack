@@ -93,6 +93,15 @@ A concrete example of launching would look like
 ```bash
 python scripts/fixtrack_app.py --video data/group_8_2_morning_1227_vidGPGP040121_compressed.mov --track data/trackfile_new.h5
 ```
+Right now the keyboard commands are
+```
+Space      Start/stop video
+Left/Right Move forward/back one video frame
+C          Switch between 2D and 3D cameras
+V          Toggle the video visibility
+1-9        Start following fish number 1-9 (clicking on a fish also starts following it)
+0          Stop following fish
+```
 
 ### Development
 **Issues/Questions**
