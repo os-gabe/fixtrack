@@ -20,6 +20,8 @@ class PickableBase(VisualWrapper):
             self.colors_raw = None
             self.colors = None
 
+            self.edge_colors = None
+
         def __str__(self):
             msg = ""
             for k in dir(self):
@@ -83,6 +85,8 @@ class PickableBase(VisualWrapper):
             self._pa.gen_unique_colors(id(self), n)
         state.colors_raw = self._cmap_func(self._state.data)
         state.colors = state.colors_raw.copy()
+        state.edge_colors = state.colors_raw.copy()
+        state.edge_colors[:, :3] = 0.0
 
     def _process_data(self, data):
         if data is not None:

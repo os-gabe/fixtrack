@@ -1,14 +1,20 @@
 import numpy as np
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
+import os
 
 
 class PlayerHeadWidget(QtWidgets.QWidget):
     sig_frame_change = QtCore.pyqtSignal(int)
 
-    def __init__(self, parent, video_reader, dt=0.5):
+    fname_play = os.path.join(os.path.dirname(__file__), "icons", "play.svg")
+    fname_skip_ahead = os.path.join(os.path.dirname(__file__), "icons", "skip-forward.svg")
+    fname_skip_back = os.path.join(os.path.dirname(__file__), "icons", "skip-back.svg")
+    fname_pause = os.path.join(os.path.dirname(__file__), "icons", "pause.svg")
+
+    def __init__(self, parent, video_reader):
         QtWidgets.QWidget.__init__(self, parent)
 
-        self.dt = dt
+        self.dt = 1.0 / video_reader.fps
         self._playing = False
 
         self.video_reader = video_reader
@@ -20,9 +26,9 @@ class PlayerHeadWidget(QtWidgets.QWidget):
         self._frame_idx = self._id_2_idx[self._frame_num]
 
         self.play_button = QtWidgets.QToolButton(self.parent())
-        self.play_button.setIcon(
-            self.parent().style().standardIcon(QtWidgets.QStyle.SP_MediaPlay)
-        )
+        self.icon_play = QtGui.QIcon(QtGui.QPixmap(self.fname_play))
+        self.icon_pause = QtGui.QIcon(QtGui.QPixmap(self.fname_pause))
+        self.play_button.setIcon(self.icon_play)
         self.play_button.clicked.connect(self.cb_play)
         self.play_button.setToolTip("Start/stop playback")
 
@@ -33,16 +39,12 @@ class PlayerHeadWidget(QtWidgets.QWidget):
         )
 
         nextButton = QtWidgets.QToolButton(self.parent())
-        nextButton.setIcon(
-            self.parent().style().standardIcon(QtWidgets.QStyle.SP_MediaSkipForward)
-        )
+        nextButton.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_skip_ahead)))
         nextButton.clicked.connect(self.cb_last)
         nextButton.setToolTip("Skip to last frame")
 
         prevButton = QtWidgets.QToolButton(self.parent())
-        prevButton.setIcon(
-            self.parent().style().standardIcon(QtWidgets.QStyle.SP_MediaSkipBackward)
-        )
+        prevButton.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_skip_back)))
         prevButton.clicked.connect(self.cb_first)
         prevButton.setToolTip("Skip to first frame")
 
@@ -56,15 +58,11 @@ class PlayerHeadWidget(QtWidgets.QWidget):
         self.rate_box = QtWidgets.QComboBox()
 
         self.rate_box.addItem("1/8x  ", QtCore.QVariant(1.0 / 8.0))
-        self.rate_box.addItem("1/6x  ", QtCore.QVariant(1.0 / 6.0))
         self.rate_box.addItem("1/4x  ", QtCore.QVariant(1.0 / 4.0))
         self.rate_box.addItem("1/2x  ", QtCore.QVariant(1.0 / 2.0))
         self.rate_box.addItem("1x  ", QtCore.QVariant(1.0))
         self.rate_box.addItem("2x  ", QtCore.QVariant(2.0))
-        self.rate_box.addItem("4x  ", QtCore.QVariant(4.0))
-        self.rate_box.addItem("6x  ", QtCore.QVariant(6.0))
-        self.rate_box.addItem("8x  ", QtCore.QVariant(8.0))
-        self.rate_box.setCurrentIndex(4)
+        self.rate_box.setCurrentIndex(3)
         self.rate_box.activated.connect(self.cb_update_rate)
         self.rate_box.setToolTip("Change playback speed")
 
@@ -126,16 +124,12 @@ class PlayerHeadWidget(QtWidgets.QWidget):
             self.cb_stop()
         else:
             self.timer.start(self.interval)
-            self.play_button.setIcon(
-                self.parent().style().standardIcon(QtWidgets.QStyle.SP_MediaPause)
-            )
+            self.play_button.setIcon(self.icon_pause)
             self._playing = True
 
     def cb_stop(self):
         self.timer.stop()
-        self.play_button.setIcon(
-            self.parent().style().standardIcon(QtWidgets.QStyle.SP_MediaPlay)
-        )
+        self.play_button.setIcon(self.icon_play)
         self._playing = False
 
     def cb_timeout(self):

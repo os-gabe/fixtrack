@@ -74,10 +74,14 @@ class PickableMarkers(PickableBase):
                 k: v
                 for k, v in self._cfg.vis_args.items() if k not in self._kwargs_ignore
             }
+            self._state.edge_colors[:, 3] = self._state.colors[:, 3]
+
             self.visual.set_data(
                 pos=self._state.data,
                 size=self._state.sizes,
                 face_color=self._state.colors,
+                edge_color=self._state.edge_colors,
+                edge_width=3,
                 **kwargs
             )
         else:
@@ -85,9 +89,6 @@ class PickableMarkers(PickableBase):
 
     def _set_data_false(self):
         if len(self._state.data) > 0:
-            # symbol = "disc"
-            # if "symbol" in self._cfg.vis_args:
-            #     symbol = self._cfg.vis_args["symbol"]
             self.visual.set_data(
                 pos=self._state.data,
                 size=self._state.sizes,
@@ -96,6 +97,5 @@ class PickableMarkers(PickableBase):
                 edge_width=0,
                 # symbol=symbol
             )
-            # self._state.sizes[self._selected_idxs()] = s
         else:
             self.visual.set_data(np.zeros((0, 3)))
