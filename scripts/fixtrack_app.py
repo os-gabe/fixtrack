@@ -14,24 +14,11 @@ if ipython is not None:
 parser = argparse.ArgumentParser()
 parser.add_argument("--video", type=str, default=None, help="Video file name")
 parser.add_argument("--track", type=str, default=None, help="Track H5 file name")
-parser.add_argument(
-    "--estimate-heading",
-    action="store_true",
-    help="Estimate heading from direction of travel rather than using the value from the track"
-)
-parser.add_argument(
-    "--filter-heading", action="store_true", help="Low pass filter heading vector"
-)
 
 args = parser.parse_args()
 
 app = QApplication(sys.argv)
 
-main_win = FixtrackWindow(
-    args.video,
-    args.track,
-    estimate_heading=args.estimate_heading,
-    filter_heading=args.filter_heading,
-)
+main_win = FixtrackWindow(args.video, args.track)
 main_win.show()
 sys.exit(app.exec_())

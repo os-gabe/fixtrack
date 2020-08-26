@@ -1,6 +1,8 @@
-import numpy as np
-from PyQt5 import QtCore, QtWidgets, QtGui
 import os
+
+import numpy as np
+from PyQt5 import QtCore, QtGui, QtWidgets
+from fixtrack.frontend.range_slider import RangeSlider
 
 
 class PlayerHeadWidget(QtWidgets.QWidget):
@@ -24,6 +26,8 @@ class PlayerHeadWidget(QtWidgets.QWidget):
         self._id_2_idx = {i: i for i in self._ids}
         self._frame_num = self._ids[0]
         self._frame_idx = self._id_2_idx[self._frame_num]
+        self._idx_sel_a = self._ids[0]
+        self._idx_sel_b = self._ids[-1]
 
         self.play_button = QtWidgets.QToolButton(self.parent())
         self.icon_play = QtGui.QIcon(QtGui.QPixmap(self.fname_play))
@@ -33,6 +37,7 @@ class PlayerHeadWidget(QtWidgets.QWidget):
         self.play_button.setToolTip("Start/stop playback")
 
         self.frame_text = QtWidgets.QLineEdit(str(self.frame_num))
+        self.cb_slider_text(self.frame_idx, resize=True)
         self.frame_text.setReadOnly(True)
         self.frame_text.setSizePolicy(
             QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum
@@ -50,68 +55,91 @@ class PlayerHeadWidget(QtWidgets.QWidget):
 
         self.play_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.play_slider.setRange(0, self.num_frames - 1)
-        self.play_slider.sliderMoved.connect(self.cb_slider_text)
-        self.play_slider.sliderReleased.connect(self.cb_slider)
+        self.play_slider.sliderMoved.connect(self.cb_play_slider)
+        self.play_slider.sliderReleased.connect(self.cb_play_slider)
         self.play_slider.setFocusPolicy(QtCore.Qt.NoFocus)
         self.play_slider.setTickPosition(QtWidgets.QSlider.TicksBothSides)
 
-        self.rate_box = QtWidgets.QComboBox()
+        self.start_slider = RangeSlider(self.play_slider)
+        self.start_slider.setRangeLimit(0, self.num_frames - 1)
+        self.start_slider.setRange(0, self.num_frames - 1)
+        self.start_slider.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.start_slider.setTickPosition(QtWidgets.QSlider.NoTicks)
+        self.start_slider.setTickInterval(0)
+        self.start_slider.sliderMoved.connect(self.cb_start_slider)
 
+        self.rate_box = QtWidgets.QComboBox()
         self.rate_box.addItem("1/8x  ", QtCore.QVariant(1.0 / 8.0))
         self.rate_box.addItem("1/4x  ", QtCore.QVariant(1.0 / 4.0))
         self.rate_box.addItem("1/2x  ", QtCore.QVariant(1.0 / 2.0))
         self.rate_box.addItem("1x  ", QtCore.QVariant(1.0))
         self.rate_box.addItem("2x  ", QtCore.QVariant(2.0))
+        self.rate_box.setFocusPolicy(QtCore.Qt.NoFocus)
         self.rate_box.setCurrentIndex(3)
         self.rate_box.activated.connect(self.cb_update_rate)
         self.rate_box.setToolTip("Change playback speed")
 
-        layout = QtWidgets.QHBoxLayout()
-        layout.addWidget(self.frame_text)
-        layout.addWidget(prevButton)
-        layout.addWidget(self.play_button)
-        layout.addWidget(nextButton)
-        layout.addWidget(self.play_slider)
-        layout.addWidget(self.rate_box)
-        self.setLayout(layout)
+        lh = QtWidgets.QHBoxLayout()
+        lv = QtWidgets.QVBoxLayout()
+
+        lh.addWidget(self.frame_text)
+        lh.addWidget(prevButton)
+        lh.addWidget(self.play_button)
+        lh.addWidget(nextButton)
+        lh.addWidget(self.rate_box)
+        lh.addStretch()
+        lv.addLayout(lh)
+        lv.addWidget(self.play_slider)
+        lv.addWidget(self.start_slider)
+
+        self.setLayout(lv)
 
         self.interval = self.dt * 1000 / self.rate_box.currentData()
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.cb_timeout)
 
-    def set_frame_id_to_idx_dict(self, d):
-        self._id_2_idx = d
-        self._ids = [k for k in self._id_2_idx]
-        self.play_slider.setRange(self._ids[0], self._ids[-1])
-
-        self._frame_num = self._ids[np.argmin(np.abs(np.array(self._ids) - self._frame_num))]
-        self._frame_idx = self._id_2_idx[self._frame_num]
-        self._set_frame(True)
-
     def cb_last(self):
         self.cb_stop()
-        self.cb_slider(self._ids[-1])
+        self.cb_play_slider(self._ids[-1])
         self.play_slider.blockSignals(True)
         self.play_slider.setValue(self.frame_num)
         self.play_slider.blockSignals(False)
 
     def cb_first(self):
         self.cb_stop()
-        self.cb_slider(self._ids[0])
+        self.cb_play_slider(self._ids[0])
         self.play_slider.blockSignals(True)
         self.play_slider.setValue(self.frame_num)
         self.play_slider.blockSignals(False)
 
-    def cb_slider_text(self, idx):
-        msg = "%0" + str(len("%d" % self.num_frames)
-                         ) + "d/" + "[%d, %d]" % (self._ids[0], self._ids[-1])
-        self.frame_text.setText(msg % (idx))
+    def cb_slider_text(self, idx, resize=False):
+        def resize_frame_text_to_fit(self):
+            text = self.frame_text.text()
+            font = QtGui.QFont("", 0)
+            fm = QtGui.QFontMetrics(font)
+            pixelsWide = fm.width(text)
+            pixelsHigh = fm.height()
+            self.frame_text.setFixedSize(pixelsWide, pixelsHigh)
 
-    def cb_slider(self, frame_num=None):
+        msg = f"{idx:04d}/{self._ids[-1]:04d} [{self._idx_sel_a:04d}, {self._idx_sel_b:04d}]"
+        self.frame_text.setText(msg)
+        if resize:
+            resize_frame_text_to_fit(self)
+
+    def cb_play_slider(self, frame_num=None):
         if frame_num is None:
             frame_num = self.play_slider.value()
         self.cb_stop()
         self.set_frame_num(frame_num)
+
+    def cb_start_slider(self, idx_a, idx_b, handle):
+        self.cb_stop()
+        self._idx_sel_a = idx_a
+        self._idx_sel_b = idx_b
+        if (self.frame_num < idx_a) or (handle == 0):
+            self.set_frame_num(idx_a)
+        elif (self.frame_num > idx_b) or (handle == 1):
+            self.set_frame_num(idx_b)
 
     def toggle_play(self):
         if self._playing:

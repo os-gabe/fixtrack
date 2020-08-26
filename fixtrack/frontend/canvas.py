@@ -12,6 +12,7 @@ from fixtrack.frontend.pickable_line import PickableLine
 from fixtrack.frontend.pickable_markers import PickableMarkers
 from fixtrack.frontend.visual_wrapper import VisualCollection, VisualWrapper
 from fixtrack.common.utils import color_from_index, normalize_vecs
+from fixtrack.frontend.track import TrackCollectionVisual
 
 
 class CanvasBase(scene.SceneCanvas):
@@ -121,26 +122,12 @@ class CanvasBase(scene.SceneCanvas):
 
 
 class VideoCanvas(CanvasBase):
-    def __init__(
-        self,
-        parent,
-        fname_video=None,
-        fname_track=None,
-        estimate_heading=False,
-        filter_heading=False,
-        **kwargs
-    ):
+    def __init__(self, parent, fname_video=None, fname_track=None, **kwargs):
         super().__init__(parent, **kwargs)
 
         self.unfreeze()
         self.tracks = TrackIO.load(fname_track)
         self.video = VideoReader(fname_video)
-
-        if estimate_heading:
-            self.tracks.estimate_heading()
-
-        if filter_heading:
-            self.tracks.filter_heading(self.video.fps, f_cut_hz=5.0)
 
         self.frame_num = 0
 
@@ -153,121 +140,13 @@ class VideoCanvas(CanvasBase):
 
         # Add video visual
         self.visuals["img"] = VisualWrapper(scene.visuals.Image(parent=self.view.scene))
-        self.visuals["img"].transform = scene.STTransform(translate=[0.0, 0.0, -1.0])
+        self.visuals["img"].transform = scene.STTransform(translate=[0.0, 0.0, -10.0])
 
-        self.visuals["headings"] = PickableLine(
-            parent=self.view.scene,
-            data=np.zeros((0, 3)),
-            pickable=True,
-            selectable=False,
-            hoverable=True,
-            vis_args={
-                "width": 10,
-                "color_hover": [0, 0, 0, 0.85],
-                "color_select": [1, 0, 0, 0.65]
-            },
-            cmap_func=lambda data: self.track_cmap_func(data, alpha=0.65, repeats=2)
-        )
-
-        self.visuals["markers"] = PickableMarkers(
-            parent=self.view.scene,
-            data=np.zeros((0, 3)),
-            pickable=True,
-            selectable=False,
-            hoverable=True,
-            vis_args={
-                "size": 25,
-                "color_hover": [0, 0, 0, 0.4],
-                "color_select": [0, 0, 0, 0.5],
-            },
-            select_scale=1.5,
-            cmap_func=lambda data: self.track_cmap_func(data, alpha=1, repeats=1)
-        )
-        self.visuals["markers"].sig_point_clicked.connect(self.slot_marker_clicked)
-
-        segs = np.repeat(np.arange(0, self.tracks.num_frames), 2)[1:-1]
-        pos = [track["pos"][segs] for track in self.tracks]
-        pos = np.vstack(pos)
-        self.visuals["traces"] = VisualWrapper(
-            scene.visuals.Line(
-                pos,
-                connect="segments",
-                color=self.cmap_trace_func(pos),
-                width=10,
-                parent=self.view.scene
-            ),
-            segs=segs,
-            width=10,
-            connect="segments",
-        )
+        self.visuals["tracks"] = TrackCollectionVisual(self.tracks, parent=self)
 
         self.ts = time.time()
 
         self.freeze()
-
-    def slot_set_track_vis(self, idx, vis):
-        self.tracks[idx].visible = vis
-        self.update_trace_data()
-
-    def update_trace_data(self):
-        pos = np.vstack(
-            [track["pos"][self.visuals["traces"]._state.segs] for track in self.tracks]
-        )
-        self.visuals["traces"].visual.set_data(
-            pos=pos,
-            width=self.visuals["traces"]._state.width,
-            connect=self.visuals["traces"]._state.connect,
-            color=self.cmap_trace_func(pos)
-        )
-
-    def trace_idxs(self, idx_frame):
-        ti = self.trace_idxs + idx_frame
-        ti = ti[(ti >= 0) & (ti < self.tracks.num_frames)]
-        tis = []
-        for idx_track in range(self.tracks.num_tracks):
-            # Skip frames without a detection
-            m = self.tracks[idx_track]["det"][ti]
-            tis.append(ti[m])
-        return tis
-
-    def slot_marker_clicked(
-        self, id_clicked, idx_sel, idx_sel_prev, idx_clicked, idx_hover, modifiers
-    ):
-        self._parent.track_edit_bar.track_widgets[idx_clicked].selected.animateClick()
-
-    def track_cmap_func(self, data, alpha=0.5, repeats=1):
-        colors = color_from_index(
-            range(self.tracks.num_tracks)
-        )  # cm.Paired(np.linspace(0.0, 1.0, self.tracks.num_tracks))
-        colors[:, 3] = alpha
-
-        if repeats > 1:
-            colors = np.repeat(colors, repeats, axis=0)
-
-        for idx_tk in range(self.tracks.num_tracks):
-            if len(colors) > 0:
-                for r in range(repeats):
-                    colors[repeats * idx_tk +
-                           r][3] = self.tracks.tracks[idx_tk]["det"][self.frame_num]
-        return colors
-
-    def cmap_trace_func(self, data, alpha=0.5):
-        colors = color_from_index(range(self.tracks.num_tracks))
-        colors[:, 3] = alpha
-        assert (len(colors) % self.tracks.num_tracks) == 0
-        chunk_len = len(data) // self.tracks.num_tracks
-        colors = np.vstack([np.tile(color, (chunk_len, 1)) for color in colors])
-
-        segs = np.repeat(np.arange(0, self.tracks.num_frames), 2)[1:-1]
-        det = [track["det"][segs] for track in self.tracks]
-        det = np.hstack(det)
-        colors[:, 3] *= det
-        colors[1:, 3] *= det[:-1]
-        colors[:-1, 3] *= det[1:]
-        for track_idx, track in enumerate(self.tracks):
-            frame_idx = track_idx * chunk_len
-            colors[frame_idx:frame_idx + chunk_len][:, 3] *= track.visible
-        return colors
 
     def toggle_cam(self):
         if isinstance(self.view.camera, scene.PanZoomCamera):
@@ -275,33 +154,16 @@ class VideoCanvas(CanvasBase):
         else:
             self.view.camera = "panzoom"
 
-    def get_heading_segments(self, frame_num, vec_len):
-        positions = [tk["pos"][frame_num] for tk in self.tracks.tracks]
-        positions = np.vstack(positions)
-        headings = [tk["vec"][frame_num] for tk in self.tracks.tracks]
-        headings = np.vstack(headings)
-        heading_segs = np.zeros((2 * len(headings), 3))
-        heading_segs[0::2] = positions
-        heading_segs[1::2] = positions + headings * vec_len
-
-        return positions, heading_segs
-
     def on_frame_change(self, frame_num=None):
         if frame_num is not None:
             self.frame_num = frame_num
 
         img = self.video.get_frame(self.frame_num)
-
         self.visuals["img"].set_data(img)
 
         self.update()
 
-        vec_len = 50
-
-        positions, heading_segs = self.get_heading_segments(self.frame_num, vec_len)
-
-        self.visuals["markers"].set_data(positions)
-        self.visuals["headings"].set_data(heading_segs)
+        self.visuals["tracks"].on_frame_change(frame_num)
 
     def on_mouse_press(self, event):
         img = self.render_picking(event)
@@ -309,40 +171,17 @@ class VideoCanvas(CanvasBase):
             if hasattr(v, "on_mouse_press"):
                 v.on_mouse_press(event, img)
 
-        if self.visuals["headings"].idx_clicked >= 0:
-            if event.button == 1:
-                self.view.camera.interactive = False
-
     def on_mouse_release(self, event):
         img = self.render_picking(event)
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_release"):
                 v.on_mouse_release(event, img)
 
-        self.view.camera.interactive = True
-
     def on_mouse_move(self, event):
         img = self.render_picking(event)
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_move"):
                 v.on_mouse_move(event, img)
-
-        click_pos = self.view.camera.transform.imap(event.pos)[:3]
-        if not isinstance(self.view.camera, scene.PanZoomCamera):
-            return
-
-        trail = event.trail()
-        if util.keys.SHIFT in event.modifiers:
-            if (self.visuals["headings"].idx_clicked >= 0) and (trail is not None):
-                idx_track = self.visuals["headings"].idx_clicked
-                idx_frame = self.frame_num
-                track_pos = self.tracks.tracks[idx_track]["pos"][idx_frame]
-                vec = click_pos - track_pos
-                print(click_pos, track_pos)
-                vec = normalize_vecs(vec)
-                self.tracks.tracks[idx_track]["vec"][idx_frame] = vec
-                _, heading_segs = self.get_heading_segments(idx_frame, 50)
-                self.visuals["headings"].set_data(heading_segs)
 
     def on_key_press(self, event):
         # Forward the Qt event to the parent

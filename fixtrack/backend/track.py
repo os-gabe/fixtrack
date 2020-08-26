@@ -34,7 +34,7 @@ class Track(object):
     def _valid_idx(self, idx):
         assert (idx >= 0) and (idx < len(self)), f"Invalid frame index {idx}"
 
-    def add_det(self, idx, pos, vec=None):
+    def add_det(self, idx, pos, vec=None, interp=False):
         if vec is None:
             vec = Track.default_vec
 
@@ -42,6 +42,28 @@ class Track(object):
         self["pos"][idx] = pos
         self["vec"][idx] = vec
         self["det"][idx] = True
+
+        if interp:
+            det_next = np.where(self["det"][idx + 1:])[0]
+            det_prev = np.where(self["det"][idx - 1::-1])[0]
+            if len(det_next) > 0:
+                det_next = idx + det_next[0] + 1
+                self["det"][idx:det_next] = True
+                self["pos"][idx:det_next] = np.linspace(
+                    self["pos"][idx], self["pos"][det_next], det_next - idx
+                )
+                self["vec"][idx:det_next] = np.linspace(
+                    self["vec"][idx], self["vec"][det_next], det_next - idx
+                )
+            if len(det_prev) > 0:
+                det_prev = idx - det_prev[0] - 1
+                self["det"][det_prev:idx] = True
+                self["pos"][det_prev:idx] = np.linspace(
+                    self["pos"][det_prev], self["pos"][idx], idx - det_prev
+                )
+                self["vec"][det_prev:idx] = np.linspace(
+                    self["vec"][det_prev], self["vec"][idx], idx - det_prev
+                )
 
     def rem_det(self, idx):
         self._valid_idx(idx)
@@ -155,6 +177,7 @@ class TrackCollection(object):
             self.tracks[idx].estimate_heading()
 
     def filter_heading(self, fps, f_cut_hz, order=2, idxs_track=None):
+        print("filtering", fps, f_cut_hz, order, idxs_track)
         if idxs_track is None:
             idxs_track = range(self.num_tracks)
 
@@ -190,6 +213,7 @@ class TrackCollection(object):
     def rem_track(self, idx):
         assert (idx >= 0) and (idx < self.num_tracks), f"Invalid track index {idx}"
         self.tracks.pop(idx)
+        # self.tracks[idx]["det"] = False
 
     @property
     def num_tracks(self):

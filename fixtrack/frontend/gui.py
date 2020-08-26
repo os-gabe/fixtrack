@@ -4,7 +4,7 @@ from fixtrack.frontend.widget import VideoWidget
 
 
 class FixtrackWindow(QtWidgets.QMainWindow):
-    def __init__(self, fname_video, fname_track, estimate_heading, filter_heading):
+    def __init__(self, fname_video, fname_track):
         QtWidgets.QMainWindow.__init__(self)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle("Track Fixer")
@@ -19,21 +19,12 @@ class FixtrackWindow(QtWidgets.QMainWindow):
 
         self.help_menu.addAction('&About', self.about)
 
-        #
-        bgcolor = [.15, .16, .16]
-        # bgcolor = [1., 1., 1.]
+        bgcolor = [0.15, 0.16, 0.16]
         self.main_widget = VideoWidget(
-            self,
-            fname_video=fname_video,
-            fname_track=fname_track,
-            estimate_heading=estimate_heading,
-            filter_heading=filter_heading,
-            bgcolor=bgcolor
+            self, fname_video=fname_video, fname_track=fname_track, bgcolor=bgcolor
         )
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
-
-        # self.statusBar().showMessage("FixTrack", 1000)
 
     def fileQuit(self):
         self.close()

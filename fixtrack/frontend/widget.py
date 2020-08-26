@@ -1,29 +1,16 @@
 from PyQt5 import QtCore, QtWidgets
-
+import numpy as np
 from fixtrack.frontend.canvas import VideoCanvas
 from fixtrack.frontend.player_head import PlayerHeadWidget
 from fixtrack.frontend.track_controls import TrackEditLayoutBar
 
 
 class VideoWidget(QtWidgets.QWidget):
-    def __init__(
-        self,
-        parent,
-        fname_video=None,
-        fname_track=None,
-        estimate_heading=False,
-        filter_heading=False,
-        bgcolor="white"
-    ):
+    def __init__(self, parent, fname_video=None, fname_track=None, bgcolor="white"):
         QtWidgets.QWidget.__init__(self)
 
         self.canvas = VideoCanvas(
-            self,
-            fname_video=fname_video,
-            fname_track=fname_track,
-            estimate_heading=estimate_heading,
-            filter_heading=filter_heading,
-            bgcolor=bgcolor
+            self, fname_video=fname_video, fname_track=fname_track, bgcolor=bgcolor
         )
 
         self.canvas.native.setSizePolicy(
@@ -45,8 +32,8 @@ class VideoWidget(QtWidgets.QWidget):
 
         vlayout = QtWidgets.QVBoxLayout()
         vlayout.addWidget(self.canvas.native)
-        self.player_head = PlayerHeadWidget(self, self.canvas.video)
-        vlayout.addWidget(self.player_head)
+        self.player_controls = PlayerHeadWidget(self, self.canvas.video)
+        vlayout.addWidget(self.player_controls)
 
         hlayout = QtWidgets.QHBoxLayout()
         hlayout.addWidget(self.scroll_area)
@@ -54,8 +41,8 @@ class VideoWidget(QtWidgets.QWidget):
 
         self.setLayout(hlayout)
 
-        self.player_head.sig_frame_change.connect(self.canvas.on_frame_change)
-        self.player_head.sig_frame_change.emit(0)
+        self.player_controls.sig_frame_change.connect(self.canvas.on_frame_change)
+        self.player_controls.sig_frame_change.emit(0)
 
     def setup_track_edit_bar(self):
         self.track_edit_bar = TrackEditLayoutBar(self)
@@ -79,12 +66,18 @@ class VideoWidget(QtWidgets.QWidget):
             QtWidgets.QApplication.quit()
 
         if key == QtCore.Qt.Key_Space:
-            self.player_head.toggle_play()
+            self.player_controls.toggle_play()
         elif key == QtCore.Qt.Key_Left:
-            self.player_head.decr()
+            self.player_controls.decr()
         elif key == QtCore.Qt.Key_Right:
-            self.player_head.incr()
+            self.player_controls.incr()
         elif key == QtCore.Qt.Key_C:
             self.canvas.toggle_cam()
         elif key == QtCore.Qt.Key_V:
             self.canvas.visuals["img"].visible ^= True
+        elif key == QtCore.Qt.Key_BracketLeft:
+            self.player_controls.start_slider.setFirstPosition(self.player_controls.frame_num)
+            self.canvas.on_frame_change()
+        elif key == QtCore.Qt.Key_BracketRight:
+            self.player_controls.start_slider.setSecondPosition(self.player_controls.frame_num)
+            self.canvas.on_frame_change()
