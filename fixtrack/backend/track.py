@@ -45,38 +45,41 @@ class Track(object):
 
         if interp:
             det_next = np.where(self["det"][idx + 1:])[0]
-            det_prev = np.where(self["det"][idx - 1::-1])[0]
             if len(det_next) > 0:
                 det_next = idx + det_next[0] + 1
                 self["det"][idx:det_next] = True
                 self["pos"][idx:det_next] = np.linspace(
                     self["pos"][idx], self["pos"][det_next], det_next - idx
                 )
-                self["vec"][idx:det_next] = np.linspace(
-                    self["vec"][idx], self["vec"][det_next], det_next - idx
-                )
-            if len(det_prev) > 0:
-                det_prev = idx - det_prev[0] - 1
-                self["det"][det_prev:idx] = True
-                self["pos"][det_prev:idx] = np.linspace(
-                    self["pos"][det_prev], self["pos"][idx], idx - det_prev
-                )
-                self["vec"][det_prev:idx] = np.linspace(
-                    self["vec"][det_prev], self["vec"][idx], idx - det_prev
-                )
+                # self["vec"][idx:det_next] = np.linspace(
+                #     self["vec"][idx], self["vec"][det_next], det_next - idx
+                # )
+            if idx > 0:
+                det_prev = np.where(self["det"][idx - 1::-1])[0]
+                if len(det_prev) > 0:
+                    det_prev = idx - det_prev[0] - 1
+                    self["det"][det_prev:idx + 1] = True
+                    self["pos"][det_prev:idx + 1] = np.linspace(
+                        self["pos"][det_prev], self["pos"][idx], idx - det_prev + 1
+                    )
+                    # self["vec"][det_prev:idx] = np.linspace(
+                    #     self["vec"][det_prev], self["vec"][idx], idx - det_prev
+                    # )
 
     def rem_det(self, idx):
         self._valid_idx(idx)
         self["det"][idx] = False
 
     def filter_heading(self, fps, f_cut_hz, order=2):
-        self["vec"] = self.filter_vec(
-            data=self["vec"], fps=fps, f_cut_hz=f_cut_hz, order=order
-        )
+        det = self["det"]
+        vec = self["vec"][det]
+        vecf = self.filter_vec(data=vec, fps=fps, f_cut_hz=f_cut_hz, order=order)
+        self["vec"][det] = vecf
 
     def filter_position(self, fps, f_cut_hz, order=2):
-        self["pos"] = self.filter_vec(
-            data=self["pos"], fps=fps, f_cut_hz=f_cut_hz, order=order
+        det = self["det"]
+        self["pos"][det] = self.filter_vec(
+            data=self["pos"][det], fps=fps, f_cut_hz=f_cut_hz, order=order
         )
 
     def estimate_heading(self):
@@ -100,6 +103,9 @@ class Track(object):
 
     @staticmethod
     def filter_vec(data, fps, f_cut_hz, order=1):
+        """
+        Low pass filter an array of values
+        """
         fsamp = fps
         fnyq = 0.5 * fsamp
         wn = f_cut_hz / fnyq

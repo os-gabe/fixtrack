@@ -2,16 +2,12 @@ import os
 import time
 
 import cv2
-import numpy as np
 from matplotlib import pyplot as plt
-from vispy import scene, util
+from vispy import scene
 
 from fixtrack.backend.track_io import TrackIO
 from fixtrack.backend.video_reader import VideoReader
-from fixtrack.frontend.pickable_line import PickableLine
-from fixtrack.frontend.pickable_markers import PickableMarkers
 from fixtrack.frontend.visual_wrapper import VisualCollection, VisualWrapper
-from fixtrack.common.utils import color_from_index, normalize_vecs
 from fixtrack.frontend.track import TrackCollectionVisual
 
 
@@ -126,6 +122,7 @@ class VideoCanvas(CanvasBase):
         super().__init__(parent, **kwargs)
 
         self.unfreeze()
+        self.fname_tracks = fname_track
         self.tracks = TrackIO.load(fname_track)
         self.video = VideoReader(fname_video)
 

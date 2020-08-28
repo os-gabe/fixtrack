@@ -1,5 +1,4 @@
 import numpy as np
-from matplotlib import cm
 from PyQt5 import QtCore
 from vispy import scene, util
 
@@ -19,23 +18,14 @@ class TrackCollectionVisual(VisualCollection):
     def __init__(
         self,
         tracks,
-        # color,
         parent=None,
         enabled=True,
         visible=True,
-        # line_args={"width": 10},
-        # heading_args={"width": 10},
-        # marker_args={"size": 25},
-        # data=np.zeros((0, 3)),
     ):
         super(TrackCollectionVisual,
               self).__init__(parent=parent, enabled=enabled, visible=visible)
-        # self._color = color
         self.tracks = tracks
-        # self._line_args = line_args
-        # self._heading_args = heading_args
 
-        # self.visuals["markers"].sig_point_clicked.connect(self.slot_point_clicked)
         pos, seg, vec = self.get_data()
         self.visuals["headings"] = PickableLine(
             parent=parent.view.scene,
@@ -146,22 +136,13 @@ class TrackCollectionVisual(VisualCollection):
         colors[:, 3] = alpha
         for track_idx, track in enumerate(self.tracks):
             frame_idx = track_idx * chunk_len
-            det = np.repeat(track["det"], 2)[1:-1]
-            colors[frame_idx:frame_idx + chunk_len][:, 3] *= det
-
-            # import ipdb
-            # ipdb.set_trace()
-            # if (frame_idx + chunk_len + 1) < len(colors):
-            #     colors[frame_idx + 1:frame_idx + chunk_len + 1][:, 3] *= det
-            # if frame_idx > 0:
-            #     colors[frame_idx - 1:frame_idx + chunk_len - 1][:, 3] *= det
-            # ####
-            # if (frame_idx + chunk_len + 2) < len(colors):
-            #     colors[frame_idx + 2:frame_idx + chunk_len + 2][:, 3] *= det
-            # if frame_idx > 0:
-            #     colors[frame_idx - 2:frame_idx + chunk_len - 2][:, 3] *= det
+            det = np.repeat(track["det"], 2)
 
             colors[frame_idx:frame_idx + chunk_len] = c[track_idx]
+            colors[frame_idx:frame_idx + chunk_len][:, 3] *= det[1:-1]
+            colors[frame_idx:frame_idx + chunk_len][:, 3] *= det[0:-2]
+            colors[frame_idx:frame_idx + chunk_len][:, 3] *= det[2:]
+
             colors[frame_idx:frame_idx + chunk_len][:, 3] *= track.visible
 
             if hasattr(self._parent._parent, "player_controls"):
@@ -197,26 +178,36 @@ class TrackCollectionVisual(VisualCollection):
         idx_track, idx_frame = self.track_address_from_vec_idx(idx_clicked)
         self._parent._parent.track_edit_bar.track_widgets[idx_track].btn_selected.animateClick(
         )
-        self._parent.on_frame_change(idx_frame)
+        self._parent._parent.player_controls.set_frame_num(idx_frame)
 
     def on_mouse_press(self, event, img):
+        edit_bar = self._parent._parent.track_edit_bar
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_press"):
                 v.on_mouse_press(event, img)
-
         c0 = self.visuals["markers"].idx_clicked >= 0
         c1 = self.visuals["headings"].idx_clicked >= 0
-        if c0 or c1:
-            if event.button == 1:
-                self._parent.view.camera.interactive = False
-        elif util.keys.SHIFT in event.modifiers:
+        if (util.keys.SHIFT in event.modifiers) and (event.button == 1) and not (c0 or c1):
             if not isinstance(self._parent.view.camera, scene.PanZoomCamera):
                 return
             click_pos = self._parent.view.camera.transform.imap(event.pos)[:3]
-            idx_track = self._parent._parent.track_edit_bar.idx_selected()
+            idx_track = edit_bar.idx_selected()
             if idx_track >= 0:
-                self.tracks[idx_track].add_det(self.frame_num, click_pos, interp=True)
+                interp = edit_bar.track_widgets[idx_track].btn_interp.isChecked()
+                self.tracks[idx_track].add_det(self.frame_num, click_pos, interp=interp)
                 self._parent.on_frame_change()
+        # elif (util.keys.SHIFT in event.modifiers) and (event.button == 1) and (c0 or c1):
+        #     idx_track, idx_frame = self.track_address_from_vec_idx(
+        #         max(self.visuals["headings"].idx_clicked, self.visuals["markers"].idx_clicked)
+        #     )
+        elif (util.keys.SHIFT in event.modifiers) and (event.button == 2) and (c0 or c1):
+            idx_track, idx_frame = self.track_address_from_vec_idx(
+                max(self.visuals["headings"].idx_clicked, self.visuals["markers"].idx_clicked)
+            )
+            self.tracks.tracks[idx_track]["det"][idx_frame] = False
+            self.visuals["headings"].deselect()
+            self.visuals["markers"].deselect()
+            self._parent.on_frame_change()
 
     def on_mouse_release(self, event, img):
         for v in self.visuals.values():
@@ -234,12 +225,8 @@ class TrackCollectionVisual(VisualCollection):
             return
 
         trail = event.trail()
-        if util.keys.SHIFT in event.modifiers:
+        if (util.keys.SHIFT in event.modifiers) and (event.button == 1):
             if (self.visuals["headings"].idx_clicked >= 0) and (trail is not None):
-                # import ipdb
-                # ipdb.set_trace()
-                # idx_track = self.visuals["headings"].idx_clicked
-                # idx_frame = self.frame_num
                 idx_track, idx_frame = self.track_address_from_vec_idx(
                     self.visuals["headings"].idx_clicked
                 )
@@ -247,9 +234,11 @@ class TrackCollectionVisual(VisualCollection):
                 vec = click_pos - track_pos
                 vec = normalize_vecs(vec)
                 self.tracks.tracks[idx_track]["vec"][idx_frame] = vec
-                # _, heading_segs = self.get_heading_segments(idx_frame, 50)
-                # self.visuals["headings"].set_data(heading_segs)
-                # assert np.all(self.tracks.tracks[idx_track]["vec"][idx_frame] == vec)
                 self.tracks[idx_track][idx_frame]["vec"] = vec
-
+                self._parent.on_frame_change()
+            elif (self.visuals["markers"].idx_clicked >= 0) and (trail is not None):
+                idx_track, idx_frame = self.track_address_from_vec_idx(
+                    self.visuals["markers"].idx_clicked
+                )
+                self.tracks.tracks[idx_track]["pos"][idx_frame] = click_pos
                 self._parent.on_frame_change()
