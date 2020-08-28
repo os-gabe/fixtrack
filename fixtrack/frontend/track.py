@@ -122,7 +122,7 @@ class TrackCollectionVisual(VisualCollection):
             colors[frame_idx:frame_idx + chunk_len][:, 3] *= track.visible
             if hasattr(self._parent._parent, "player_controls"):
                 idx_a = self._parent._parent.player_controls._idx_sel_a
-                idx_b = self._parent._parent.player_controls._idx_sel_b
+                idx_b = self._parent._parent.player_controls._idx_sel_b + 1
                 colors[frame_idx:frame_idx + chunk_len][:idx_a, 3] *= 0
                 colors[frame_idx:frame_idx + chunk_len][idx_b:, 3] *= 0
         return colors
@@ -147,7 +147,7 @@ class TrackCollectionVisual(VisualCollection):
 
             if hasattr(self._parent._parent, "player_controls"):
                 idx_a = self._parent._parent.player_controls._idx_sel_a
-                idx_b = self._parent._parent.player_controls._idx_sel_b
+                idx_b = self._parent._parent.player_controls._idx_sel_b + 1
                 colors[frame_idx:frame_idx + chunk_len][:idx_a * 2, 3] *= 0
                 colors[frame_idx:frame_idx + chunk_len][idx_b * 2:, 3] *= 0
         return colors
@@ -167,7 +167,7 @@ class TrackCollectionVisual(VisualCollection):
             colors[frame_idx:frame_idx + chunk_len][:, 3] *= track.visible
             if hasattr(self._parent._parent, "player_controls"):
                 idx_a = self._parent._parent.player_controls._idx_sel_a
-                idx_b = self._parent._parent.player_controls._idx_sel_b
+                idx_b = self._parent._parent.player_controls._idx_sel_b + 1
                 colors[frame_idx:frame_idx + chunk_len][:idx_a * 2, 3] *= 0
                 colors[frame_idx:frame_idx + chunk_len][idx_b * 2:, 3] *= 0
         return colors
