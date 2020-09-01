@@ -52,6 +52,7 @@ class TopLevelControls(QWidget):
     fname_add = os.path.join(os.path.dirname(__file__), "icons", "plus.svg")
     fname_eye = os.path.join(os.path.dirname(__file__), "icons", "eye.svg")
     fname_save = os.path.join(os.path.dirname(__file__), "icons", "save.svg")
+    fname_undo = os.path.join(os.path.dirname(__file__), "icons", "rotate-ccw.svg")
 
     def __init__(self, parent):
         QWidget.__init__(self, parent)
@@ -81,9 +82,15 @@ class TopLevelControls(QWidget):
         self.btn_save_tracks.setFocusPolicy(QtCore.Qt.NoFocus)
         hl1.addWidget(self.btn_save_tracks)
 
+        self.btn_undo = QPushButton(self)
+        self.btn_undo.setToolTip("Undo last action")
+        self.btn_undo.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_undo)))
+        self.btn_undo.clicked.connect(self.cb_btn_undo)
+        self.btn_undo.setFocusPolicy(QtCore.Qt.NoFocus)
+        hl1.addWidget(self.btn_undo)
+
         btn_heading = QCheckBox("Show Heading")
         btn_heading.setToolTip("Show/hide heading vectors")
-        # btn_heading.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_eye)))
         btn_heading.clicked.connect(self.cb_btn_heading)
         btn_heading.setChecked(True)
         btn_heading.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -93,10 +100,20 @@ class TopLevelControls(QWidget):
         vl.addLayout(hl2)
         self.setLayout(vl)
 
+    def cb_btn_undo(self, clicked):
+        self.parent()._parent.canvas.tracks.undo()
+        self.parent()._parent.canvas.on_frame_change()
+
     def cb_btn_save_tracks(self, checked):
         ext = ".h5"
-        savedir = os.path.dirname(self.parent()._parent.canvas.fname_tracks)
-        fname, _ = QFileDialog.getSaveFileName(self, "Save File", savedir, f"H5 File (*{ext})")
+        if self.parent()._parent.canvas.fname_tracks is not None:
+            savedir = os.path.dirname(self.parent()._parent.canvas.fname_tracks)
+        else:
+            savedir = os.path.dirname(self.parent()._parent.canvas.fname_video)
+
+        fname, _ = QFileDialog.getSaveFileName(
+            self, "Save File", savedir, f"H5 File (*{ext});;All Files (*)"
+        )
 
         if fname == "":
             return
@@ -291,7 +308,7 @@ class TrackEditItem(QGroupBox):
             )
 
     def cb_btn_heading(self, checked):
-        self.parent()._parent.canvas.tracks[self.index].estimate_heading()
+        self.parent()._parent.canvas.tracks.estimate_heading([self.index])
         self.parent()._parent.canvas.on_frame_change()
 
     def cb_btn_filter(self, checked):

@@ -36,7 +36,7 @@ class TrackCollectionVisual(VisualCollection):
             vis_args={
                 "width": 10,
                 "color_hover": [0, 0, 0, 0.85],
-                "color_select": [1, 0, 0, 0.65]
+                "color_select": [1, 0, 0, 0.85]
             },
             cmap_func=self.cmap_vec_func,
         )
@@ -163,6 +163,8 @@ class TrackCollectionVisual(VisualCollection):
             frame_idx = track_idx * chunk_len
             det = np.repeat(track["det"], 2)
             colors[frame_idx:frame_idx + chunk_len] = c[track_idx]
+            colors[frame_idx + 2 * self.frame_num] = [1.0, 0.0, 0.0, 1.0]
+            colors[frame_idx + 2 * self.frame_num + 1] = [1.0, 0.0, 0.0, 1.0]
             colors[frame_idx:frame_idx + chunk_len][:, 3] *= det
             colors[frame_idx:frame_idx + chunk_len][:, 3] *= track.visible
             if hasattr(self._parent._parent, "player_controls"):
@@ -194,7 +196,7 @@ class TrackCollectionVisual(VisualCollection):
             idx_track = edit_bar.idx_selected()
             if idx_track >= 0:
                 interp = edit_bar.track_widgets[idx_track].btn_interp.isChecked()
-                self.tracks[idx_track].add_det(self.frame_num, click_pos, interp=interp)
+                self.tracks.add_det(idx_track, self.frame_num, click_pos, interp=interp)
                 self._parent.on_frame_change()
         # elif (util.keys.SHIFT in event.modifiers) and (event.button == 1) and (c0 or c1):
         #     idx_track, idx_frame = self.track_address_from_vec_idx(
@@ -204,7 +206,7 @@ class TrackCollectionVisual(VisualCollection):
             idx_track, idx_frame = self.track_address_from_vec_idx(
                 max(self.visuals["headings"].idx_clicked, self.visuals["markers"].idx_clicked)
             )
-            self.tracks.tracks[idx_track]["det"][idx_frame] = False
+            self.tracks.rem_det(idx_track, idx_frame)
             self.visuals["headings"].deselect()
             self.visuals["markers"].deselect()
             self._parent.on_frame_change()
@@ -233,12 +235,11 @@ class TrackCollectionVisual(VisualCollection):
                 track_pos = self.tracks.tracks[idx_track]["pos"][idx_frame]
                 vec = click_pos - track_pos
                 vec = normalize_vecs(vec)
-                self.tracks.tracks[idx_track]["vec"][idx_frame] = vec
-                self.tracks[idx_track][idx_frame]["vec"] = vec
+                self.tracks.tracks[idx_track].move_vec(idx_frame, vec)
                 self._parent.on_frame_change()
             elif (self.visuals["markers"].idx_clicked >= 0) and (trail is not None):
                 idx_track, idx_frame = self.track_address_from_vec_idx(
                     self.visuals["markers"].idx_clicked
                 )
-                self.tracks.tracks[idx_track]["pos"][idx_frame] = click_pos
+                self.tracks.tracks[idx_track].move_pos(idx_frame, click_pos)
                 self._parent.on_frame_change()

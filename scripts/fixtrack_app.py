@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import sys
 
@@ -12,8 +14,8 @@ if ipython is not None:
     ipython.magic("%gui qt5")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--video", type=str, default=None, help="Video file name")
-parser.add_argument("--track", type=str, default=None, help="Track H5 file name")
+parser.add_argument("video", type=str, help="Video file name")
+parser.add_argument("--track", type=str, default=None, help="Track H5 file name if one exists")
 
 args = parser.parse_args()
 

@@ -1,7 +1,9 @@
 import copy
+from collections import deque
 
 import numpy as np
 from scipy import signal
+
 from fixtrack.common.utils import normalize_vecs
 
 DTYPE_TRACK_POINT = [
@@ -12,10 +14,17 @@ DTYPE_TRACK_POINT = [
 
 
 class Track(object):
+    def undoable(func):
+        def decorated_func(self, *args, **kwargs):
+            self.undo_queue.append(self._data.copy())
+            func(self, *args, **kwargs)
+
+        return decorated_func
+
     default_vec = [1.0, 1.0, 0.0]
     default_vec = normalize_vecs(default_vec)
 
-    def __init__(self, pos, vec=None, det=None, visible=True):
+    def __init__(self, pos, vec=None, det=None, visible=True, undo_len=10):
         n = len(pos)
         self.visible = visible
         self._data = np.zeros((n, ), dtype=DTYPE_TRACK_POINT)
@@ -31,9 +40,20 @@ class Track(object):
             assert len(det) == n
             self._data["det"] = det
 
+        self.undo_queue = deque(maxlen=undo_len)
+
     def _valid_idx(self, idx):
         assert (idx >= 0) and (idx < len(self)), f"Invalid frame index {idx}"
 
+    def undo(self):
+        if len(self.undo_queue) == 0:
+            return
+        self._data = self.undo_queue.pop()
+
+    def clear_undo_queue(self):
+        self.undo_queue.clear()
+
+    @undoable
     def add_det(self, idx, pos, vec=None, interp=False):
         if vec is None:
             vec = Track.default_vec
@@ -66,22 +86,54 @@ class Track(object):
                     #     self["vec"][det_prev], self["vec"][idx], idx - det_prev
                     # )
 
+    # @undoable
+    def move_pos(self, idx, pos, window=500, exp=3):
+        delta = pos - self["pos"][idx]
+        idxf = np.arange(idx, min(len(self), idx + window))
+        idxr = np.arange(max(0, idx - window), idx + 1)
+
+        wr = np.linspace(0, 1.0, len(idxr))
+        wf = np.linspace(1.0, 0, len(idxf))
+
+        self["pos"][idxf, 0] += delta[0] * wf**3
+        self["pos"][idxf, 1] += delta[1] * wf**3
+        self["pos"][idxr[:-1], 0] += delta[0] * wr[:-1]**3
+        self["pos"][idxr[:-1], 1] += delta[1] * wr[:-1]**3
+
+    # @undoable
+    def move_vec(self, idx, vec, window=500):
+        delta = vec - self["vec"][idx]
+        idxf = np.arange(idx, min(len(self), idx + window))
+        idxr = np.arange(max(0, idx - window), idx + 1)
+
+        wr = np.linspace(0, 1.0, len(idxr))
+        wf = np.linspace(1.0, 0, len(idxf))
+
+        self["vec"][idxf, 0] += delta[0] * wf**3
+        self["vec"][idxf, 1] += delta[1] * wf**3
+        self["vec"][idxr[:-1], 0] += delta[0] * wr[:-1]**3
+        self["vec"][idxr[:-1], 1] += delta[1] * wr[:-1]**3
+
+    @undoable
     def rem_det(self, idx):
         self._valid_idx(idx)
         self["det"][idx] = False
 
+    @undoable
     def filter_heading(self, fps, f_cut_hz, order=2):
         det = self["det"]
         vec = self["vec"][det]
         vecf = self.filter_vec(data=vec, fps=fps, f_cut_hz=f_cut_hz, order=order)
         self["vec"][det] = vecf
 
+    @undoable
     def filter_position(self, fps, f_cut_hz, order=2):
         det = self["det"]
         self["pos"][det] = self.filter_vec(
             data=self["pos"][det], fps=fps, f_cut_hz=f_cut_hz, order=order
         )
 
+    @undoable
     def estimate_heading(self):
         """
         Estimate heading based on direction of travel
@@ -99,7 +151,16 @@ class Track(object):
         vecs = 0.5 * (vecsa + vecsb)
         vecs = normalize_vecs(vecs)
 
-        self["vec"] = vecs
+        self["vec"][self["det"]] = vecs[self["det"]]
+
+    def jog_heading(self, delta, idx_a, idx_b):
+        vecs = self["vec"][idx_a:idx_b]
+        angs = np.arctan2(vecs[:, 1], vecs[:, 0])
+        angs += delta
+        vx = np.cos(angs)
+        vy = np.sin(angs)
+        self["vec"][idx_a:idx_b, 0] = vx
+        self["vec"][idx_a:idx_b, 1] = vy
 
     @staticmethod
     def filter_vec(data, fps, f_cut_hz, order=1):
@@ -160,7 +221,7 @@ class Track(object):
 
 
 class TrackCollection(object):
-    def __init__(self, tracks):
+    def __init__(self, tracks, undo_len=10):
         n = len(tracks)
         assert n > 0, "Must provide 1 or more tracks"
         n = len(tracks[0])
@@ -170,10 +231,24 @@ class TrackCollection(object):
             assert len(t) == n, f"Track {i} with len {ni} did not match track[0] with len {n}"
             self.tracks.append(t)
 
+        self.undo_queue = deque(maxlen=undo_len)
+
     def _valid_idxs(self, idx_track, idx_frame):
         assert (idx_track >=
                 0) and (idx_track < self.num_tracks), f"Invalid track index {idx_track}"
         self.tracks[idx_track]._valid_idx(idx_frame)
+
+    def undo(self):
+        if len(self.undo_queue) == 0:
+            return
+        track_idxs = self.undo_queue.pop()
+        for idx in track_idxs:
+            self.tracks[idx].undo()
+
+    def clear_undo_queue(self):
+        self.undo_queue.clear()
+        for tk in self.tracks:
+            tk.clear_undo_queue()
 
     def estimate_heading(self, idxs_track=None):
         if idxs_track is None:
@@ -182,6 +257,8 @@ class TrackCollection(object):
         for idx in idxs_track:
             self.tracks[idx].estimate_heading()
 
+        self.undo_queue.append(idxs_track)
+
     def filter_heading(self, fps, f_cut_hz, order=2, idxs_track=None):
         print("filtering", fps, f_cut_hz, order, idxs_track)
         if idxs_track is None:
@@ -189,6 +266,7 @@ class TrackCollection(object):
 
         for idx in idxs_track:
             self.tracks[idx].filter_heading(fps, f_cut_hz=f_cut_hz, order=order)
+        self.undo_queue.append(idxs_track)
 
     def filter_position(self, fps, f_cut_hz, order=2, idxs_track=None):
         if idxs_track is None:
@@ -196,14 +274,17 @@ class TrackCollection(object):
 
         for idx in idxs_track:
             self.tracks[idx].filter_position(fps, f_cut_hz=f_cut_hz, order=order)
+        self.undo_queue.append(idxs_track)
 
-    def add_det(self, idx_track, idx_frame, pos, vec=None):
+    def add_det(self, idx_track, idx_frame, pos, vec=None, interp=False):
         self._valid_idxs(idx_track, idx_frame)
-        self.tracks[idx_track].add_det(idx=idx_frame, pos=pos, vec=vec)
+        self.tracks[idx_track].add_det(idx=idx_frame, pos=pos, vec=vec, interp=interp)
+        self.undo_queue.append([idx_track])
 
     def rem_det(self, idx_track, idx_frame):
         self._valid_idxs(idx_track, idx_frame)
         self.tracks[idx_track].rem_det(idx=idx_frame)
+        self.undo_queue.append([idx_track])
 
     def add_track(self, track=None):
         if track is not None:
@@ -219,7 +300,7 @@ class TrackCollection(object):
     def rem_track(self, idx):
         assert (idx >= 0) and (idx < self.num_tracks), f"Invalid track index {idx}"
         self.tracks.pop(idx)
-        # self.tracks[idx]["det"] = False
+        self.clear_undo_queue()
 
     @property
     def num_tracks(self):

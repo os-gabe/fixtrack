@@ -1,5 +1,4 @@
 from PyQt5 import QtCore, QtWidgets
-import numpy as np
 from fixtrack.frontend.canvas import VideoCanvas
 from fixtrack.frontend.player_head import PlayerHeadWidget
 from fixtrack.frontend.track_controls import TrackEditLayoutBar
@@ -23,11 +22,11 @@ class VideoWidget(QtWidgets.QWidget):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        # self.scroll_area.SizeAdjustPolicy(QScrollArea.AdjustToContentsOnFirstShow)
         sp = QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
         )
         self.scroll_area.setSizePolicy(sp)
+        self.scroll_area.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setup_track_edit_bar()
 
         vlayout = QtWidgets.QVBoxLayout()
@@ -52,9 +51,6 @@ class VideoWidget(QtWidgets.QWidget):
             )
         self.scroll_area.setWidget(self.track_edit_bar)
 
-    def slot_marker_clicked(self, idx_track, idx_frame):
-        pass
-
     def keyPressEvent(self, event):
         key = event.key()
         print(key)
@@ -64,6 +60,12 @@ class VideoWidget(QtWidgets.QWidget):
         c0 = event.modifiers() == QtCore.Qt.ControlModifier
         if key == QtCore.Qt.Key_Q and c0:
             QtWidgets.QApplication.quit()
+        elif key == QtCore.Qt.Key_S and c0:
+            self.track_edit_bar.top_level_ctrls.btn_save_tracks.animateClick()
+        elif key == QtCore.Qt.Key_N and c0:
+            self.track_edit_bar.top_level_ctrls.btn_add_track.animateClick()
+        elif key == QtCore.Qt.Key_Z and c0:
+            self.track_edit_bar.top_level_ctrls.btn_undo.animateClick()
 
         if key == QtCore.Qt.Key_Space:
             self.player_controls.toggle_play()

@@ -122,9 +122,15 @@ class VideoCanvas(CanvasBase):
         super().__init__(parent, **kwargs)
 
         self.unfreeze()
-        self.fname_tracks = fname_track
-        self.tracks = TrackIO.load(fname_track)
+        assert fname_video is not None, "Must provide a valid video file"
         self.video = VideoReader(fname_video)
+
+        self.fname_tracks = fname_track
+        self.fname_video = fname_video
+        if self.fname_tracks is None:
+            self.tracks = TrackIO.blank(self.video.num_frames)
+        else:
+            self.tracks = TrackIO.load(fname_track)
 
         self.frame_num = 0
 
@@ -162,6 +168,15 @@ class VideoCanvas(CanvasBase):
 
         self.visuals["tracks"].on_frame_change(frame_num)
 
+    def on_mouse_wheel(self, event):
+        if len(event.modifiers) and ("Control" in event.modifiers):
+            d = event.delta[1] / 10.0
+            idx_track = self._parent.track_edit_bar.idx_selected()
+            idx_a = self._parent.player_controls._idx_sel_a
+            idx_b = self._parent.player_controls._idx_sel_b + 1
+            self.tracks[idx_track].jog_heading(d, idx_a, idx_b)
+            self.on_frame_change()
+
     def on_mouse_press(self, event):
         img = self.render_picking(event)
         for v in self.visuals.values():
@@ -182,8 +197,11 @@ class VideoCanvas(CanvasBase):
 
     def on_key_press(self, event):
         # Forward the Qt event to the parent
+        if len(event.modifiers) and ("Control" in event.modifiers):
+            self.view.camera.interactive = False
         self._parent.keyPressEvent(event._native)
 
     def on_key_release(self, event):
         # Forward the Qt event to the parent
+        self.view.camera.interactive = True
         self._parent.keyReleaseEvent(event._native)
