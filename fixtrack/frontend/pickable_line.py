@@ -60,6 +60,7 @@ class PickableLine(PickableBase):
         if len(self._state.data) > 1:
             colors = self._pa.unique_colors(id(self)) / 255.0
             colors = np.repeat(colors, 2, axis=0)
+            colors[self._state.colors[:, 3] < 1.0e-3] = 0.0
             assert len(self._state.data) == len(colors), (len(self._state.data), len(colors))
             self.visual.set_data(
                 pos=self._state.data,

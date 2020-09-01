@@ -6,6 +6,9 @@ from vispy import scene
 
 
 class PickableMarkers(PickableBase):
+    """
+    Markers that can highlight on hover and be selected
+    """
     class State(PickableBase.State):
         def __init__(self, **kwargs):
             super(PickableMarkers.State, self).__init__(**kwargs)
@@ -18,10 +21,6 @@ class PickableMarkers(PickableBase):
             self.select_scale = select_scale
             self.hover_scale = hover_scale
 
-    """
-    Markers that can highlight on hover and be selected
-    """
-
     _kwargs_ignore = ["size", "color_select", "color_hover"]
 
     def __init__(self, parent=None, data=np.zeros((0, 3)), select_scale=2.0, **kwargs):
@@ -31,6 +30,7 @@ class PickableMarkers(PickableBase):
         self.visual.set_gl_state("translucent", depth_test=False, blend=True)
         self._cfg.select_scale = select_scale
         self._cfg.hover_scale = select_scale * 1.15
+        self.multi_sel = None
 
     @property
     def marker_size(self):
@@ -41,8 +41,15 @@ class PickableMarkers(PickableBase):
         self._cfg.vis_args["size"] = max(1, s)
         self._init_data()
         self.set_data()
-        # self._cfg.select_scale = select_scale
-        # self._cfg.hover_scale = select_scale * 1.15
+
+    def _selected_idxs(self):
+        sel = []
+        if self.multi_sel is None:
+            if self._state.idx_selected >= 0:
+                sel = [self._state.idx_selected]
+        else:
+            sel = self.multi_sel
+        return sel
 
     def _init_data(self):
         super(PickableMarkers, self)._init_data()
@@ -74,10 +81,14 @@ class PickableMarkers(PickableBase):
                 k: v
                 for k, v in self._cfg.vis_args.items() if k not in self._kwargs_ignore
             }
+            self._state.edge_colors[:, 3] = self._state.colors[:, 3]
+
             self.visual.set_data(
                 pos=self._state.data,
                 size=self._state.sizes,
                 face_color=self._state.colors,
+                edge_color=self._state.edge_colors,
+                edge_width=3,
                 **kwargs
             )
         else:
@@ -85,17 +96,14 @@ class PickableMarkers(PickableBase):
 
     def _set_data_false(self):
         if len(self._state.data) > 0:
-            # symbol = "disc"
-            # if "symbol" in self._cfg.vis_args:
-            #     symbol = self._cfg.vis_args["symbol"]
+            colors = self._pa.unique_colors(id(self)) / 255.0
+            colors[self._state.colors[:, 3] < 1.0e-3] = 0.0
             self.visual.set_data(
                 pos=self._state.data,
                 size=self._state.sizes,
-                face_color=self._pa.unique_colors(id(self)) / 255.0,
-                edge_color=self._pa.unique_colors(id(self)) / 255.0,
+                face_color=colors,
+                edge_color=colors,
                 edge_width=0,
-                # symbol=symbol
             )
-            # self._state.sizes[self._selected_idxs()] = s
         else:
             self.visual.set_data(np.zeros((0, 3)))

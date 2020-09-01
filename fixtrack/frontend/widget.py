@@ -1,23 +1,15 @@
 from PyQt5 import QtCore, QtWidgets
-
 from fixtrack.frontend.canvas import VideoCanvas
 from fixtrack.frontend.player_head import PlayerHeadWidget
+from fixtrack.frontend.track_controls import TrackEditLayoutBar
 
 
 class VideoWidget(QtWidgets.QWidget):
-    def __init__(
-        self,
-        parent,
-        video=None,
-        track=None,
-        estimate_heading=False,
-        frame_rate=30.0,
-        bgcolor="white"
-    ):
+    def __init__(self, parent, fname_video=None, fname_track=None, bgcolor="white"):
         QtWidgets.QWidget.__init__(self)
 
         self.canvas = VideoCanvas(
-            self, video=video, track=track, estimate_heading=estimate_heading, bgcolor=bgcolor
+            self, fname_video=fname_video, fname_track=fname_track, bgcolor=bgcolor
         )
 
         self.canvas.native.setSizePolicy(
@@ -26,13 +18,38 @@ class VideoWidget(QtWidgets.QWidget):
         self.canvas.create_native()
         self.canvas.native.setParent(self)
 
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addWidget(self.canvas.native)
+        self.scroll_area = QtWidgets.QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        sp = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
+        self.scroll_area.setSizePolicy(sp)
+        self.scroll_area.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setup_track_edit_bar()
 
-        self.player_head = PlayerHeadWidget(self, self.canvas.video, 1.0 / frame_rate)
-        self.layout.addWidget(self.player_head)
+        vlayout = QtWidgets.QVBoxLayout()
+        vlayout.addWidget(self.canvas.native)
+        self.player_controls = PlayerHeadWidget(self, self.canvas.video)
+        vlayout.addWidget(self.player_controls)
 
-        self.player_head.sig_frame_change.connect(self.canvas.set_img)
+        hlayout = QtWidgets.QHBoxLayout()
+        hlayout.addWidget(self.scroll_area)
+        hlayout.addLayout(vlayout)
+
+        self.setLayout(hlayout)
+
+        self.player_controls.sig_frame_change.connect(self.canvas.on_frame_change)
+        self.player_controls.sig_frame_change.emit(0)
+
+    def setup_track_edit_bar(self):
+        self.track_edit_bar = TrackEditLayoutBar(self)
+        for i in range(self.canvas.tracks.num_tracks):
+            self.track_edit_bar.add_track(
+                index=i, select=(i == 0), last=(i == (self.canvas.tracks.num_tracks - 1))
+            )
+        self.scroll_area.setWidget(self.track_edit_bar)
 
     def keyPressEvent(self, event):
         key = event.key()
@@ -43,34 +60,26 @@ class VideoWidget(QtWidgets.QWidget):
         c0 = event.modifiers() == QtCore.Qt.ControlModifier
         if key == QtCore.Qt.Key_Q and c0:
             QtWidgets.QApplication.quit()
+        elif key == QtCore.Qt.Key_S and c0:
+            self.track_edit_bar.top_level_ctrls.btn_save_tracks.animateClick()
+        elif key == QtCore.Qt.Key_N and c0:
+            self.track_edit_bar.top_level_ctrls.btn_add_track.animateClick()
+        elif key == QtCore.Qt.Key_Z and c0:
+            self.track_edit_bar.top_level_ctrls.btn_undo.animateClick()
 
         if key == QtCore.Qt.Key_Space:
-            self.player_head.toggle_play()
+            self.player_controls.toggle_play()
         elif key == QtCore.Qt.Key_Left:
-            self.player_head.decr()
+            self.player_controls.decr()
         elif key == QtCore.Qt.Key_Right:
-            self.player_head.incr()
+            self.player_controls.incr()
         elif key == QtCore.Qt.Key_C:
             self.canvas.toggle_cam()
         elif key == QtCore.Qt.Key_V:
             self.canvas.visuals["img"].visible ^= True
-        elif key == QtCore.Qt.Key_0:
-            self.canvas.cam_track = 0
-        elif key == QtCore.Qt.Key_1:
-            self.canvas.cam_track = 1
-        elif key == QtCore.Qt.Key_2:
-            self.canvas.cam_track = 2
-        elif key == QtCore.Qt.Key_3:
-            self.canvas.cam_track = 3
-        elif key == QtCore.Qt.Key_4:
-            self.canvas.cam_track = 4
-        elif key == QtCore.Qt.Key_5:
-            self.canvas.cam_track = 5
-        elif key == QtCore.Qt.Key_6:
-            self.canvas.cam_track = 6
-        # elif key == QtCore.Qt.Key_X:
-        #     # self.visuals[f"track_edit{idx_tk}"]
-        #     for i in range(self.canvas.track.num_tracks):
-        #         self.canvas.visuals[f"track_edit{i}"].visible ^= True
-        else:
-            pass
+        elif key == QtCore.Qt.Key_BracketLeft:
+            self.player_controls.start_slider.setFirstPosition(self.player_controls.frame_num)
+            self.canvas.on_frame_change()
+        elif key == QtCore.Qt.Key_BracketRight:
+            self.player_controls.start_slider.setSecondPosition(self.player_controls.frame_num)
+            self.canvas.on_frame_change()

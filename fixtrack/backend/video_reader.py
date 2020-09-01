@@ -17,6 +17,12 @@ class VideoReader(object):
         self.next_frame_num = 0
 
         self.cap = cv2.VideoCapture(self.fname)
+        assert self.cap.isOpened(), f"Failed to open video {fname}"
+
+        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+
+        print(f"Loaded {fname} encoded with frame rate of {self.fps}fps")
+
         self.num_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -43,7 +49,6 @@ class VideoReader(object):
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
 
         self.next_frame_num = frame_num + 1
-        # print("Loading frame %d of %d." % (frame_num, self.num_frames))
 
         ret, frame = self.cap.read()
         if ret == 0:
@@ -59,4 +64,4 @@ class VideoReader(object):
         elif color_mode == 'RGB':
             cv2.cvtColor(frame, cv2.COLOR_BGR2RGB, frame)
 
-        return frame
+        return np.flipud(frame)
