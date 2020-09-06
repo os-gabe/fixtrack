@@ -138,6 +138,7 @@ class VideoCanvas(CanvasBase):
 
         self.view.camera = scene.PanZoomCamera(aspect=1, up="-z")
         self.view.camera.rect = (0, 0, self.video.width, self.video.height)
+        self.view.camera.flip = (False, True, False)
 
         self._parent = parent
 
