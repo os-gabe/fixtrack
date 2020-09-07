@@ -2,10 +2,10 @@ import numpy as np
 from PyQt5 import QtCore
 from vispy import scene, util
 
+from fixtrack.common.utils import color_from_index, normalize_vecs
 from fixtrack.frontend.pickable_line import PickableLine
 from fixtrack.frontend.pickable_markers import PickableMarkers
 from fixtrack.frontend.visual_wrapper import VisualCollection, VisualWrapper
-from fixtrack.common.utils import color_from_index, normalize_vecs
 
 
 class TrackCollectionVisual(VisualCollection):
@@ -105,6 +105,7 @@ class TrackCollectionVisual(VisualCollection):
 
     def cmap_pos_func(self, data, alpha=0.5):
         c = color_from_index(range(self.tracks.num_tracks))
+        c_ctrl = [0.0, 1.0, 0.0, alpha]
         c[:, 3] = alpha
         assert (len(data) % self.tracks.num_tracks) == 0
         chunk_len = len(data) // self.tracks.num_tracks
@@ -115,6 +116,7 @@ class TrackCollectionVisual(VisualCollection):
         for track_idx, track in enumerate(self.tracks):
             frame_idx = track_idx * chunk_len
             colors[frame_idx:frame_idx + chunk_len] = c[track_idx]
+            colors[np.where(track["ctr"])[0] + frame_idx] = c_ctrl
             if "markers" in self.visuals:
                 self.visuals["markers"].multi_sel.append(frame_idx + self.frame_num)
             det = track["det"]
@@ -184,6 +186,8 @@ class TrackCollectionVisual(VisualCollection):
 
     def on_mouse_press(self, event, img):
         edit_bar = self._parent._parent.track_edit_bar
+        interp_l = edit_bar.top_level_ctrls.btn_interp_l.isChecked()
+        interp_r = edit_bar.top_level_ctrls.btn_interp_r.isChecked()
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_press"):
                 v.on_mouse_press(event, img)
@@ -195,29 +199,35 @@ class TrackCollectionVisual(VisualCollection):
             click_pos = self._parent.view.camera.transform.imap(event.pos)[:3]
             idx_track = edit_bar.idx_selected()
             if idx_track >= 0:
-                interp = edit_bar.track_widgets[idx_track].btn_interp.isChecked()
-                self.tracks.add_det(idx_track, self.frame_num, click_pos, interp=interp)
+                self.tracks.add_det(
+                    idx_track, self.frame_num, click_pos, interp_l=interp_l, interp_r=interp_r
+                )
+                self._parent.mutated()
                 self._parent.on_frame_change()
-        # elif (util.keys.SHIFT in event.modifiers) and (event.button == 1) and (c0 or c1):
-        #     idx_track, idx_frame = self.track_address_from_vec_idx(
-        #         max(self.visuals["headings"].idx_clicked, self.visuals["markers"].idx_clicked)
-        #     )
         elif (util.keys.SHIFT in event.modifiers) and (event.button == 2) and (c0 or c1):
             idx_track, idx_frame = self.track_address_from_vec_idx(
                 max(self.visuals["headings"].idx_clicked, self.visuals["markers"].idx_clicked)
             )
-            self.tracks.rem_det(idx_track, idx_frame)
-            self.visuals["headings"].deselect()
-            self.visuals["markers"].deselect()
+            if self.tracks[idx_track]["ctr"][idx_frame]:
+                self.tracks[idx_track].rem_ctrl_pt(idx_frame)
+            else:
+                self.tracks.rem_det(idx_track, idx_frame)
+                self.visuals["headings"].deselect()
+                self.visuals["markers"].deselect()
+            self._parent.mutated()
             self._parent.on_frame_change()
 
     def on_mouse_release(self, event, img):
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_release"):
                 v.on_mouse_release(event, img)
+        self._mouse_down = False
         self._parent.view.camera.interactive = True
 
     def on_mouse_move(self, event, img):
+        edit_bar = self._parent._parent.track_edit_bar
+        interp_l = edit_bar.top_level_ctrls.btn_interp_l.isChecked()
+        interp_r = edit_bar.top_level_ctrls.btn_interp_r.isChecked()
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_move"):
                 v.on_mouse_move(event, img)
@@ -232,14 +242,26 @@ class TrackCollectionVisual(VisualCollection):
                 idx_track, idx_frame = self.track_address_from_vec_idx(
                     self.visuals["headings"].idx_clicked
                 )
+                if not self._mouse_down:
+                    self._mouse_down = True
+                    self.tracks.tracks[idx_track].add_undo_event()
                 track_pos = self.tracks.tracks[idx_track]["pos"][idx_frame]
                 vec = click_pos - track_pos
                 vec = normalize_vecs(vec)
-                self.tracks.tracks[idx_track].move_vec(idx_frame, vec)
+                self.tracks.tracks[idx_track].move_vec(
+                    idx_frame, vec, interp_l=interp_l, interp_r=interp_r
+                )
+                self._parent.mutated()
                 self._parent.on_frame_change()
             elif (self.visuals["markers"].idx_clicked >= 0) and (trail is not None):
                 idx_track, idx_frame = self.track_address_from_vec_idx(
                     self.visuals["markers"].idx_clicked
                 )
-                self.tracks.tracks[idx_track].move_pos(idx_frame, click_pos)
+                if not self._mouse_down:
+                    self._mouse_down = True
+                    self.tracks.tracks[idx_track].add_undo_event()
+                self.tracks.tracks[idx_track].move_pos(
+                    idx_frame, click_pos, interp_l=interp_l, interp_r=interp_r
+                )
+                self._parent.mutated()
                 self._parent.on_frame_change()

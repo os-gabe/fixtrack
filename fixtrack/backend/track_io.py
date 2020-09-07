@@ -6,12 +6,6 @@ import numpy as np
 import fixtrack.backend.track as tk
 import fixtrack.common.utils as utils
 
-# DTYPE_TRACK_POINT = [
-#     ('pos', np.float64, 3),  # position vector
-#     ('vec', np.float64, 3),  # Heading vector
-#     ('det', np.bool),  # Detection flag
-# ]
-
 
 class TrackIO(object):
     @staticmethod

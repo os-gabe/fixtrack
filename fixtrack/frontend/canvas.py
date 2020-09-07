@@ -1,14 +1,12 @@
-import os
 import time
 
-import cv2
-from matplotlib import pyplot as plt
+import numpy as np
 from vispy import scene
 
 from fixtrack.backend.track_io import TrackIO
 from fixtrack.backend.video_reader import VideoReader
-from fixtrack.frontend.visual_wrapper import VisualCollection, VisualWrapper
 from fixtrack.frontend.track import TrackCollectionVisual
+from fixtrack.frontend.visual_wrapper import VisualCollection, VisualWrapper
 
 
 class CanvasBase(scene.SceneCanvas):
@@ -97,25 +95,6 @@ class CanvasBase(scene.SceneCanvas):
         self.picking_vis_setup(self.visuals, restore=True)
         return img
 
-    def print_screen(self, fname=None, size=None):
-        if fname is None:
-            if not os.path.exists("screenshots"):
-                os.makedirs("screenshots")
-            idx = 0
-            fname = os.path.join("screenshots", "img_%05d.png" % (idx))
-            while os.path.isfile(fname):
-                idx += 1
-                fname = os.path.join("screenshots", "img_%05d.png" % (idx))
-        img = self.render()
-        r, c, *_ = img.shape
-        if size is not None:
-            d = max(r, c)
-            s = size / d
-            r, c = int(s * r), int(s * c)
-            img = cv2.resize(img, (c, r))
-        print("Saving image (%d,%d): %s" % (r, c, fname))
-        plt.imsave(fname, img)
-
 
 class VideoCanvas(CanvasBase):
     def __init__(self, parent, fname_video=None, fname_track=None, **kwargs):
@@ -138,12 +117,13 @@ class VideoCanvas(CanvasBase):
 
         self.view.camera = scene.PanZoomCamera(aspect=1, up="-z")
         self.view.camera.rect = (0, 0, self.video.width, self.video.height)
+        self.view.camera.flip = (False, True, False)
 
         self._parent = parent
 
         # Add video visual
         self.visuals["img"] = VisualWrapper(scene.visuals.Image(parent=self.view.scene))
-        self.visuals["img"].transform = scene.STTransform(translate=[0.0, 0.0, -10.0])
+        self.visuals["img"].transform = scene.STTransform(translate=[0.0, 0.0, -3.0])
 
         self.visuals["tracks"] = TrackCollectionVisual(self.tracks, parent=self)
 
@@ -151,9 +131,12 @@ class VideoCanvas(CanvasBase):
 
         self.freeze()
 
+    def mutated(self, b=True):
+        self._parent.mutated.emit(b)
+
     def toggle_cam(self):
         if isinstance(self.view.camera, scene.PanZoomCamera):
-            self.view.camera = "arcball"
+            self.view.camera = "turntable"
         else:
             self.view.camera = "panzoom"
 
@@ -164,18 +147,17 @@ class VideoCanvas(CanvasBase):
         img = self.video.get_frame(self.frame_num)
         self.visuals["img"].set_data(img)
 
+        if not isinstance(self.view.camera, scene.cameras.PanZoomCamera):
+            idx_track = self._parent.track_edit_bar.idx_selected()
+            if self.tracks[idx_track]["det"][self.frame_num]:
+                self.view.camera.center = self.tracks[idx_track]["pos"][self.frame_num
+                                                                        ] + [0.0, 0.0, 20.0]
+                vec = self.tracks[idx_track]["vec"][self.frame_num]
+                ang = np.arctan2(vec[1], vec[0])
+                self.view.camera.azimuth = ang * 180.0 / np.pi - 90.0
         self.update()
 
         self.visuals["tracks"].on_frame_change(frame_num)
-
-    def on_mouse_wheel(self, event):
-        if len(event.modifiers) and ("Control" in event.modifiers):
-            d = event.delta[1] / 10.0
-            idx_track = self._parent.track_edit_bar.idx_selected()
-            idx_a = self._parent.player_controls._idx_sel_a
-            idx_b = self._parent.player_controls._idx_sel_b + 1
-            self.tracks[idx_track].jog_heading(d, idx_a, idx_b)
-            self.on_frame_change()
 
     def on_mouse_press(self, event):
         img = self.render_picking(event)

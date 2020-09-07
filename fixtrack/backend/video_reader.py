@@ -30,22 +30,12 @@ class VideoReader(object):
         self.img_shape = (self.height, self.width)
         self.mean_frame = None
 
-    def get_mean_frame(self):
-        if self.mean_frame is None:
-            shape = self.get_frame(0).shape
-            frames = np.zeros(shape, dtype=np.float64)
-            for fn in range(self.num_frames):
-                frames += cv2.GaussianBlur(self.get_frame(fn), (99, 99), 0)
-            self.mean_frame = (frames / self.num_frames).astype(np.uint8)
-        return self.mean_frame
-
     def get_frame(self, frame_num, color_mode="RGB"):
         assert frame_num < self.num_frames, \
             "frame_num is %d, must be less than num_frames = %d" % (frame_num, self.num_frames)
         assert frame_num >= 0, "frame_num is %d, must be greater than zero." % frame_num
 
         if frame_num != self.next_frame_num:
-            print("Setting CAP_PROP_POS_FRAMES to %d." % frame_num)
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
 
         self.next_frame_num = frame_num + 1
@@ -53,7 +43,6 @@ class VideoReader(object):
         ret, frame = self.cap.read()
         if ret == 0:
             print("ERROR: couldn't load frame %d." % frame_num)
-            # Returning None leads to somewhat better error messages.
             return None
 
         if color_mode is None:
