@@ -2,7 +2,29 @@
 A fish tracking tool built on PyQt5 and VisPy.
 
 **Languages**  
-Python 3
+Python > 3.6. This code has been extensively tested on Ubuntu 18.04 but can also be run on Windows and MacOS.
+
+### Quick Start
+If you do not plan on doing any development on the app itself and just want to use it then you can install it in a single line using pip with one of the two commands (depending on how you have your github credentials setup):
+```/bash
+$ pip install git+ssh://git@github.com/os-gabe/fixtrack.git
+```
+or
+```/bash
+$ pip install git+https://git@github.com/os-gabe/fixtrack.git
+```
+Ideally you will have first created and activated a virtual environment following the `Python Environment` instructions below but that shouldn't be strictly necessary.
+
+After installing you can launch the app using:
+```/bash
+$ fixtrack_app.py <path-to-video-file>
+```
+and if you already have a track H5 file pass it in using `--trqck` like this:
+```/bash
+$ fixtrack_app.py <path-to-video-file> --track <path-to-track-file>
+```
+
+If you want to modify the code or are having trouble with this install method then you should read the following sections.
 
 ### Clone
 This README assumes the fixtrack repository is located on your computer under `~/code`. Clone this repo something like this
@@ -13,21 +35,6 @@ git clone git@github.com:os-gabe/fixtrack.git  # note, this will create ~/code/f
 ```
 
 ### Build
-
-**Ubuntu Setup**
-
-These instruction are for Ubuntu 18.04.
-
-Install system wide dependencies; you'll probably need `sudo`.
-```bash
-apt update
-apt upgrade
-apt install python3-tk libsm6 pkg-config libpq-dev \
-    libavformat-dev libavcodec-dev libavdevice-dev \
-    libavutil-dev libswscale-dev libswresample-dev \
-    libavfilter-dev libblas-dev ffmpeg python3-dev
-```
-I don't think all of these system dependencies are actually necessary but I have not had time to figure out which ones are or not. On a mac you would install these with Homebrew package manager https://brew.sh/ rather than apt.
 
 **Python Environment**
 
