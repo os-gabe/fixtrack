@@ -1,5 +1,4 @@
-from PyQt5 import QtWidgets, QtGui, QtCore
-import sys
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QStyle
 
 
@@ -165,16 +164,3 @@ class RangeSlider(QtWidgets.QWidget):
                 QStyle.CT_Slider, self.opt, QtCore.QSize(w, h), self
             ).expandedTo(QtWidgets.QApplication.globalStrut())
         )
-
-
-if __name__ == "__main__":
-
-    app = QtWidgets.QApplication(sys.argv)
-
-    w = RangeSlider()
-    w.show()
-
-    # q = QSlider()
-    # q.show()
-
-    app.exec_()

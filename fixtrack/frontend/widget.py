@@ -1,10 +1,13 @@
 from PyQt5 import QtCore, QtWidgets
+
 from fixtrack.frontend.canvas import VideoCanvas
 from fixtrack.frontend.player_head import PlayerHeadWidget
 from fixtrack.frontend.track_controls import TrackEditLayoutBar
 
 
 class VideoWidget(QtWidgets.QWidget):
+    mutated = QtCore.pyqtSignal(bool)
+
     def __init__(self, parent, fname_video=None, fname_track=None, bgcolor="white"):
         QtWidgets.QWidget.__init__(self)
 
@@ -53,21 +56,24 @@ class VideoWidget(QtWidgets.QWidget):
 
     def keyPressEvent(self, event):
         key = event.key()
-        print(key)
         if key == QtCore.Qt.Key_Escape:
-            QtWidgets.QApplication.quit()
+            self.parent().fileQuit()
 
         c0 = event.modifiers() == QtCore.Qt.ControlModifier
+        c1 = event.modifiers() == (QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier)
         if key == QtCore.Qt.Key_Q and c0:
-            QtWidgets.QApplication.quit()
+            self.parent().fileQuit()
         elif key == QtCore.Qt.Key_S and c0:
             self.track_edit_bar.top_level_ctrls.btn_save_tracks.animateClick()
+        elif key == QtCore.Qt.Key_S and c1:
+            self.track_edit_bar.top_level_ctrls.btn_save_tracks.animateShiftClick()
         elif key == QtCore.Qt.Key_N and c0:
             self.track_edit_bar.top_level_ctrls.btn_add_track.animateClick()
         elif key == QtCore.Qt.Key_Z and c0:
             self.track_edit_bar.top_level_ctrls.btn_undo.animateClick()
-
-        if key == QtCore.Qt.Key_Space:
+        elif key == QtCore.Qt.Key_Z and c1:
+            self.track_edit_bar.top_level_ctrls.btn_redo.animateClick()
+        elif key == QtCore.Qt.Key_Space:
             self.player_controls.toggle_play()
         elif key == QtCore.Qt.Key_Left:
             self.player_controls.decr()

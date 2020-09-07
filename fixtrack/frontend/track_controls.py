@@ -3,17 +3,37 @@ import os
 import numpy as np
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (
-    QButtonGroup, QCheckBox, QDialog, QDialogButtonBox, QGridLayout, QGroupBox, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QRadioButton, QVBoxLayout, QWidget, QFileDialog
+    QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QGridLayout,
+    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QRadioButton, QVBoxLayout, QWidget
 )
 
 from fixtrack.backend.track_io import TrackIO
 from fixtrack.common.utils import color_from_index
 
 
+class ShiftPushbutton(QPushButton):
+    shiftClicked = QtCore.pyqtSignal(bool, bool)
+
+    def mousePressEvent(self, event):
+        if (event.modifiers() == QtCore.Qt.ShiftModifier):
+            self.shiftClicked.emit(self.isChecked(), True)
+            return
+        super().mousePressEvent(event)
+
+    def animateShiftClick(self):
+        self.setCheckable(True)
+        self.setChecked(True)
+        QtCore.QTimer.singleShot(100, self._doAnimateShiftClick)
+
+    def _doAnimateShiftClick(self):
+        self.setChecked(False)
+        self.setCheckable(False)
+        self.shiftClicked.emit(self.isChecked(), True)
+
+
 class FilterDialog(QDialog):
     def __init__(self, index, *args, **kwargs):
-        super(FilterDialog, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.setWindowTitle(f"Filter Track {index}")
 
@@ -43,6 +63,13 @@ class FilterDialog(QDialog):
         gl.addWidget(self.freq_heading, 1, 1, 1, 1)
         gl.addWidget(QLabel("Hz"), 1, 2, 1, 1, QtCore.Qt.AlignRight)
 
+        self.filter_order = QComboBox()
+        gl.addWidget(QLabel("Filter Order"), 2, 0, 1, 1, QtCore.Qt.AlignLeft)
+        for i in range(1, 6):
+            self.filter_order.addItem(f"{i}")
+        self.filter_order.setCurrentIndex(1)
+        gl.addWidget(self.filter_order, 2, 1, 1, 1, QtCore.Qt.AlignLeft)
+
         self.layout.addLayout(gl)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
@@ -53,13 +80,20 @@ class TopLevelControls(QWidget):
     fname_eye = os.path.join(os.path.dirname(__file__), "icons", "eye.svg")
     fname_save = os.path.join(os.path.dirname(__file__), "icons", "save.svg")
     fname_undo = os.path.join(os.path.dirname(__file__), "icons", "rotate-ccw.svg")
+    fname_redo = os.path.join(os.path.dirname(__file__), "icons", "rotate-cw.svg")
+    fname_interp_l = os.path.join(os.path.dirname(__file__), "icons", "arrow-left-circle.svg")
+    fname_interp_r = os.path.join(os.path.dirname(__file__), "icons", "arrow-right-circle.svg")
+    fname_heading = os.path.join(os.path.dirname(__file__), "icons", "compass.svg")
 
     def __init__(self, parent):
         QWidget.__init__(self, parent)
         hl1 = QHBoxLayout()
         hl2 = QHBoxLayout()
+        hl3 = QHBoxLayout()
+        hl4 = QHBoxLayout()
         vl = QVBoxLayout()
         self.vis_toggle_state = True
+        self._fname_save = None
 
         self.btn_add_track = QPushButton(self)
         self.btn_add_track.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_add)))
@@ -75,10 +109,11 @@ class TopLevelControls(QWidget):
         self.btn_toggle_vis.setFocusPolicy(QtCore.Qt.NoFocus)
         hl1.addWidget(self.btn_toggle_vis)
 
-        self.btn_save_tracks = QPushButton(self)
+        self.btn_save_tracks = ShiftPushbutton(self)
         self.btn_save_tracks.setToolTip("Save tracks to H5 file")
         self.btn_save_tracks.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_save)))
         self.btn_save_tracks.clicked.connect(self.cb_btn_save_tracks)
+        self.btn_save_tracks.shiftClicked.connect(self.cb_btn_save_tracks)
         self.btn_save_tracks.setFocusPolicy(QtCore.Qt.NoFocus)
         hl1.addWidget(self.btn_save_tracks)
 
@@ -87,40 +122,81 @@ class TopLevelControls(QWidget):
         self.btn_undo.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_undo)))
         self.btn_undo.clicked.connect(self.cb_btn_undo)
         self.btn_undo.setFocusPolicy(QtCore.Qt.NoFocus)
-        hl1.addWidget(self.btn_undo)
+        hl4.addWidget(self.btn_undo)
 
-        btn_heading = QCheckBox("Show Heading")
-        btn_heading.setToolTip("Show/hide heading vectors")
-        btn_heading.clicked.connect(self.cb_btn_heading)
-        btn_heading.setChecked(True)
-        btn_heading.setFocusPolicy(QtCore.Qt.NoFocus)
-        hl2.addWidget(btn_heading)
+        self.btn_redo = QPushButton(self)
+        self.btn_redo.setToolTip("Redo last action")
+        self.btn_redo.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_redo)))
+        self.btn_redo.clicked.connect(self.cb_btn_redo)
+        self.btn_redo.setFocusPolicy(QtCore.Qt.NoFocus)
+        hl4.addWidget(self.btn_redo)
+
+        self.btn_heading = QPushButton(self)
+        self.btn_heading.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_heading)))
+        self.btn_heading.setToolTip("Show/hide heading vectors")
+        self.btn_heading.clicked.connect(self.cb_btn_heading)
+        self.btn_heading.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.btn_heading.setCheckable(True)
+        self.btn_heading.setChecked(True)
+        hl3.addWidget(self.btn_heading)
+
+        self.btn_interp_l = QPushButton(self)
+        self.btn_interp_l.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_interp_l)))
+        self.btn_interp_l.setToolTip("Interpolate backward in time")
+        self.btn_interp_l.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.btn_interp_l.setCheckable(True)
+        self.btn_interp_l.setChecked(True)
+        hl3.addWidget(self.btn_interp_l)
+
+        self.btn_interp_r = QPushButton(self)
+        self.btn_interp_r.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_interp_r)))
+        self.btn_interp_r.setToolTip("Interpolate forward in time")
+        self.btn_interp_r.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.btn_interp_r.setCheckable(True)
+        self.btn_interp_r.setChecked(True)
+        hl3.addWidget(self.btn_interp_r)
 
         vl.addLayout(hl1)
         vl.addLayout(hl2)
+        vl.addLayout(hl3)
+        vl.addLayout(hl4)
+
         self.setLayout(vl)
 
-    def cb_btn_undo(self, clicked):
-        self.parent()._parent.canvas.tracks.undo()
+    def cb_btn_redo(self, clicked):
+        idx_sel_track = self.parent().idx_selected()
+        self.parent()._parent.canvas.tracks.redo(idx_sel_track)
         self.parent()._parent.canvas.on_frame_change()
 
-    def cb_btn_save_tracks(self, checked):
-        ext = ".h5"
-        if self.parent()._parent.canvas.fname_tracks is not None:
-            savedir = os.path.dirname(self.parent()._parent.canvas.fname_tracks)
-        else:
-            savedir = os.path.dirname(self.parent()._parent.canvas.fname_video)
+    def cb_btn_undo(self, clicked):
+        idx_sel_track = self.parent().idx_selected()
+        self.parent()._parent.canvas.tracks.undo(idx_sel_track)
+        self.parent()._parent.canvas.on_frame_change()
 
-        fname, _ = QFileDialog.getSaveFileName(
-            self, "Save File", savedir, f"H5 File (*{ext});;All Files (*)"
-        )
+    def cb_btn_save_tracks(self, checked, save_as=False):
+        # Get filename if necessary
+        if (self._fname_save is None) or save_as:
+            ext = ".h5"
+            if self.parent()._parent.canvas.fname_tracks is not None:
+                savedir = os.path.dirname(self.parent()._parent.canvas.fname_tracks)
+            else:
+                savedir = os.path.dirname(self.parent()._parent.canvas.fname_video)
 
-        if fname == "":
-            return
-        if not fname.lower().endswith(ext):
-            fname += ext
-        TrackIO.save(fname, self.parent()._parent.canvas.tracks)
-        print(f"Saved tracks as {fname}")
+            fname, _ = QFileDialog.getSaveFileName(
+                self, "Save File", savedir, f"H5 File (*{ext});;All Files (*)"
+            )
+
+            if fname == "":
+                return
+
+            if not fname.lower().endswith(ext):
+                fname += ext
+            self._fname_save = fname
+
+        # Save the tracks
+        TrackIO.save(self._fname_save, self.parent()._parent.canvas.tracks)
+        print(f"Saved tracks as {self._fname_save}")
+        self.parent().mutated(False)
 
     def cb_btn_heading(self, checked):
         self.parent()._parent.canvas.visuals["tracks"].visuals["headings"].visible = checked
@@ -136,6 +212,7 @@ class TopLevelControls(QWidget):
         self.parent()._parent.canvas.on_frame_change()
         self.parent()._parent.canvas.on_frame_change()
         self.parent()._parent.setup_track_edit_bar()
+        self.parent().mutated()
 
 
 class TrackEditLayoutBar(QWidget):
@@ -147,9 +224,11 @@ class TrackEditLayoutBar(QWidget):
     def idx_selected(self):
         for idx, wid in self.track_widgets.items():
             if wid.btn_selected.isChecked():
-                print(f"{idx} is checked")
                 return idx
-        return -1
+        assert False, "No track was selected"
+
+    def mutated(self, b=True):
+        self._parent.mutated.emit(b)
 
     def reset(self):
         self.track_widgets = {}
@@ -277,19 +356,10 @@ class TrackEditItem(QGroupBox):
         self.btn_selected = QRadioButton("Select")
         self.btn_selected.setToolTip("Select track for editing")
         radio_bg.addButton(self.btn_selected)
-        # self.btn_selected.setChecked(select)
-        # self.btn_selected.clicked.connect(self.cb_btn_selected)
         self.btn_selected.setFocusPolicy(QtCore.Qt.NoFocus)
         self.btn_selected.toggled.connect(self.cb_btn_selected)
-        # self.btn_selected.clicked.connect(self.cb_btn_selected)
         self.btn_selected.setChecked(select)
         layout.addWidget(self.btn_selected, r, c, 1, 2, QtCore.Qt.AlignHCenter)
-        c += 2
-        self.btn_interp = QCheckBox("Interp")
-        self.btn_interp.setChecked(True)
-        self.btn_interp.setToolTip("Interpolate when adding new points")
-        self.btn_interp.setFocusPolicy(QtCore.Qt.NoFocus)
-        layout.addWidget(self.btn_interp, r, c, 1, 2, QtCore.Qt.AlignHCenter)
 
         self.setLayout(layout)
         c = (color_from_index(self.index) * 255).astype(np.uint8)
@@ -308,26 +378,38 @@ class TrackEditItem(QGroupBox):
             )
 
     def cb_btn_heading(self, checked):
-        self.parent()._parent.canvas.tracks.estimate_heading([self.index])
+        self.parent()._parent.canvas.tracks[self.index].estimate_heading()
         self.parent()._parent.canvas.on_frame_change()
+        self.parent().mutated()
 
     def cb_btn_filter(self, checked):
         dlg = FilterDialog(self.index, self)
         if dlg.exec_():
-            print("Filtering")
+            pass
         else:
             print("Cancel")
             return
+
         canvas = self.parent()._parent.canvas
+        order = int(dlg.filter_order.currentText())
         if dlg.filter_pos.isChecked():
+            f_cut_hz = float(dlg.freq_pos.text())
+            print(f"Filtering position with order {order} low pass at {f_cut_hz}Hz")
             canvas.tracks[self.index].filter_position(
-                canvas.video.fps, f_cut_hz=float(dlg.freq_pos.text())
+                canvas.video.fps,
+                f_cut_hz=f_cut_hz,
+                order=order,
             )
         if dlg.filter_heading.isChecked():
+            f_cut_hz = float(dlg.freq_heading.text())
+            print(f"Filtering heading with order {order} low pass at {f_cut_hz}Hz")
             canvas.tracks[self.index].filter_heading(
-                canvas.video.fps, f_cut_hz=float(dlg.freq_heading.text())
+                canvas.video.fps,
+                f_cut_hz=f_cut_hz,
+                order=order,
             )
         canvas.on_frame_change()
+        self.parent().mutated()
 
     def cb_btn_visible(self, checked):
         self.sig_set_track_vis.emit(self.index, not checked)
@@ -340,10 +422,11 @@ class TrackEditItem(QGroupBox):
         self.parent()._parent.canvas.tracks.rem_track(self.index)
         self.parent()._parent.canvas.on_frame_change()
         self.parent()._parent.setup_track_edit_bar()
+        self.parent().mutated()
 
     def cb_btn_rem(self, checked):
-        aa = self.parent()._parent.player_controls._idx_sel_a
-        bb = self.parent()._parent.player_controls._idx_sel_b
-        print(f"Removing detections for track {self.index} frames {aa}-{bb}")
-        self.parent()._parent.canvas.tracks[self.index][aa:bb]["det"] = False
+        idx_sel_a = self.parent()._parent.player_controls._idx_sel_a
+        idx_sel_b = self.parent()._parent.player_controls._idx_sel_b
+        self.parent()._parent.canvas.tracks[self.index].rem_dets(idx_sel_a, idx_sel_b)
         self.parent()._parent.canvas.on_frame_change()
+        self.parent().mutated()
