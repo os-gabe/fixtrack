@@ -209,7 +209,7 @@ class TopLevelControls(QWidget):
         self.vis_toggle_state ^= True
 
     def cb_add_new_track(self, clicked):
-        sself._parent._parent.canvas.tracks.add_track()
+        self._parent._parent.canvas.tracks.add_track()
         self._parent._parent.canvas.on_frame_change()
         self._parent._parent.canvas.on_frame_change()
         self._parent._parent.setup_track_edit_bar()
