@@ -160,7 +160,8 @@ class RangeSlider(QtWidgets.QWidget):
             h += TickSpace
 
         return (
-            self.style().sizeFromContents(
-                QStyle.CT_Slider, self.opt, QtCore.QSize(w, h), self
-            ).expandedTo(QtWidgets.QApplication.globalStrut())
+            self.style().sizeFromContents(QStyle.CT_Slider, self.opt,
+                                          QtCore.QSize(w, h)).expandedTo(
+                                              QtWidgets.QApplication.globalStrut()
+                                          )
         )

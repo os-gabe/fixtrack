@@ -5,7 +5,7 @@ ipython
 matplotlib
 numpy
 numpy-quaternion
-opencv-python
+opencv-python-headless
 pre-commit
 pyopengl
 PyQt5

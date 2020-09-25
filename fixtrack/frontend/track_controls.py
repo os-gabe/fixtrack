@@ -87,6 +87,7 @@ class TopLevelControls(QWidget):
 
     def __init__(self, parent):
         QWidget.__init__(self, parent)
+        self._parent = parent
         hl1 = QHBoxLayout()
         hl2 = QHBoxLayout()
         hl3 = QHBoxLayout()
@@ -208,11 +209,11 @@ class TopLevelControls(QWidget):
         self.vis_toggle_state ^= True
 
     def cb_add_new_track(self, clicked):
-        self.parent()._parent.canvas.tracks.add_track()
-        self.parent()._parent.canvas.on_frame_change()
-        self.parent()._parent.canvas.on_frame_change()
-        self.parent()._parent.setup_track_edit_bar()
-        self.parent().mutated()
+        sself._parent._parent.canvas.tracks.add_track()
+        self._parent._parent.canvas.on_frame_change()
+        self._parent._parent.canvas.on_frame_change()
+        self._parent._parent.setup_track_edit_bar()
+        self._parent.mutated()
 
 
 class TrackEditLayoutBar(QWidget):
