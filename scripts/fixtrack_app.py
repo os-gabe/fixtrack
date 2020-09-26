@@ -16,11 +16,14 @@ if ipython is not None:
 parser = argparse.ArgumentParser()
 parser.add_argument("video", type=str, help="Video file name")
 parser.add_argument("--track", type=str, default=None, help="Track H5 file name if one exists")
+parser.add_argument(
+    "--no-range-slider", action="store_true", help="Don't create a selection range slider"
+)
 
 args = parser.parse_args()
 
 app = QApplication(sys.argv)
 
-main_win = FixtrackWindow(args.video, args.track)
+main_win = FixtrackWindow(args.video, args.track, not args.no_range_slider)
 main_win.show()
 sys.exit(app.exec_())

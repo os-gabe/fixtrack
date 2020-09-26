@@ -13,7 +13,7 @@ class PlayerHeadWidget(QtWidgets.QWidget):
     fname_skip_back = os.path.join(os.path.dirname(__file__), "icons", "skip-back.svg")
     fname_pause = os.path.join(os.path.dirname(__file__), "icons", "pause.svg")
 
-    def __init__(self, parent, video_reader):
+    def __init__(self, parent, video_reader, range_slider=True):
         QtWidgets.QWidget.__init__(self, parent)
 
         self.dt = 1.0 / video_reader.fps
@@ -60,13 +60,14 @@ class PlayerHeadWidget(QtWidgets.QWidget):
         self.play_slider.setFocusPolicy(QtCore.Qt.NoFocus)
         self.play_slider.setTickPosition(QtWidgets.QSlider.TicksBothSides)
 
-        self.start_slider = RangeSlider(self.play_slider)
-        self.start_slider.setRangeLimit(0, self.num_frames - 1)
-        self.start_slider.setRange(0, self.num_frames - 1)
-        self.start_slider.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.start_slider.setTickPosition(QtWidgets.QSlider.NoTicks)
-        self.start_slider.setTickInterval(0)
-        self.start_slider.sliderMoved.connect(self.cb_start_slider)
+        if range_slider:
+            self.range_slider = RangeSlider(parent=self, other=self.play_slider)
+            self.range_slider.setRangeLimit(0, self.num_frames - 1)
+            self.range_slider.setRange(0, self.num_frames - 1)
+            self.range_slider.setFocusPolicy(QtCore.Qt.NoFocus)
+            self.range_slider.setTickPosition(QtWidgets.QSlider.NoTicks)
+            self.range_slider.setTickInterval(0)
+            self.range_slider.sliderMoved.connect(self.cb_range_slider)
 
         self.rate_box = QtWidgets.QComboBox()
         self.rate_box.addItem("1/8x  ", QtCore.QVariant(1.0 / 8.0))
@@ -90,7 +91,9 @@ class PlayerHeadWidget(QtWidgets.QWidget):
         lh.addStretch()
         lv.addLayout(lh)
         lv.addWidget(self.play_slider)
-        lv.addWidget(self.start_slider)
+
+        if range_slider:
+            lv.addWidget(self.range_slider)
 
         self.setLayout(lv)
 
@@ -132,7 +135,7 @@ class PlayerHeadWidget(QtWidgets.QWidget):
         self.cb_stop()
         self.set_frame_num(frame_num)
 
-    def cb_start_slider(self, idx_a, idx_b, handle):
+    def cb_range_slider(self, idx_a, idx_b, handle):
         self.cb_stop()
         self._idx_sel_a = idx_a
         self._idx_sel_b = idx_b
@@ -218,7 +221,7 @@ class PlayerHeadWidget(QtWidgets.QWidget):
     def set_frame_num(self, n, emit=True):
         assert n in self._ids
         if n == self._frame_num:
-            print("Already on frame num %d" % (n))
+            # print("Already on frame num %d" % (n))
             return
         self._frame_num = n
         self._frame_idx = self._id_2_idx[self._frame_num]

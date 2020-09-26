@@ -6,14 +6,18 @@ from fixtrack.frontend.widget import VideoWidget
 class FixtrackWindow(QtWidgets.QMainWindow):
     title = "Track Fixer"
 
-    def __init__(self, fname_video, fname_track):
+    def __init__(self, fname_video, fname_track, range_slider=True):
         QtWidgets.QMainWindow.__init__(self)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle(self.title)
 
         bgcolor = [0.15, 0.16, 0.16]
         self.main_widget = VideoWidget(
-            self, fname_video=fname_video, fname_track=fname_track, bgcolor=bgcolor
+            self,
+            fname_video=fname_video,
+            fname_track=fname_track,
+            range_slider=range_slider,
+            bgcolor=bgcolor
         )
         self.main_widget.mutated.connect(self.mutated)
         self.main_widget.setFocus()

@@ -8,7 +8,9 @@ from fixtrack.frontend.track_controls import TrackEditLayoutBar
 class VideoWidget(QtWidgets.QWidget):
     mutated = QtCore.pyqtSignal(bool)
 
-    def __init__(self, parent, fname_video=None, fname_track=None, bgcolor="white"):
+    def __init__(
+        self, parent, fname_video=None, fname_track=None, range_slider=True, bgcolor="white"
+    ):
         QtWidgets.QWidget.__init__(self)
 
         self.canvas = VideoCanvas(
@@ -34,7 +36,9 @@ class VideoWidget(QtWidgets.QWidget):
 
         vlayout = QtWidgets.QVBoxLayout()
         vlayout.addWidget(self.canvas.native)
-        self.player_controls = PlayerHeadWidget(self, self.canvas.video)
+        self.player_controls = PlayerHeadWidget(
+            self, self.canvas.video, range_slider=range_slider
+        )
         vlayout.addWidget(self.player_controls)
 
         hlayout = QtWidgets.QHBoxLayout()
@@ -84,8 +88,8 @@ class VideoWidget(QtWidgets.QWidget):
         elif key == QtCore.Qt.Key_V:
             self.canvas.visuals["img"].visible ^= True
         elif key == QtCore.Qt.Key_BracketLeft:
-            self.player_controls.start_slider.setFirstPosition(self.player_controls.frame_num)
+            self.player_controls.range_slider.setFirstPosition(self.player_controls.frame_num)
             self.canvas.on_frame_change()
         elif key == QtCore.Qt.Key_BracketRight:
-            self.player_controls.start_slider.setSecondPosition(self.player_controls.frame_num)
+            self.player_controls.range_slider.setSecondPosition(self.player_controls.frame_num)
             self.canvas.on_frame_change()

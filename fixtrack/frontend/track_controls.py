@@ -165,23 +165,23 @@ class TopLevelControls(QWidget):
         self.setLayout(vl)
 
     def cb_btn_redo(self, clicked):
-        idx_sel_track = self.parent().idx_selected()
-        self.parent()._parent.canvas.tracks.redo(idx_sel_track)
-        self.parent()._parent.canvas.on_frame_change()
+        idx_sel_track = self._parent.idx_selected()
+        self._parent._parent.canvas.tracks.redo(idx_sel_track)
+        self._parent._parent.canvas.on_frame_change()
 
     def cb_btn_undo(self, clicked):
-        idx_sel_track = self.parent().idx_selected()
-        self.parent()._parent.canvas.tracks.undo(idx_sel_track)
-        self.parent()._parent.canvas.on_frame_change()
+        idx_sel_track = self._parent.idx_selected()
+        self._parent._parent.canvas.tracks.undo(idx_sel_track)
+        self._parent._parent.canvas.on_frame_change()
 
     def cb_btn_save_tracks(self, checked, save_as=False):
         # Get filename if necessary
         if (self._fname_save is None) or save_as:
             ext = ".h5"
-            if self.parent()._parent.canvas.fname_tracks is not None:
-                savedir = os.path.dirname(self.parent()._parent.canvas.fname_tracks)
+            if self._parent._parent.canvas.fname_tracks is not None:
+                savedir = os.path.dirname(self._parent._parent.canvas.fname_tracks)
             else:
-                savedir = os.path.dirname(self.parent()._parent.canvas.fname_video)
+                savedir = os.path.dirname(self._parent._parent.canvas.fname_video)
 
             fname, _ = QFileDialog.getSaveFileName(
                 self, "Save File", savedir, f"H5 File (*{ext});;All Files (*)"
@@ -195,15 +195,15 @@ class TopLevelControls(QWidget):
             self._fname_save = fname
 
         # Save the tracks
-        TrackIO.save(self._fname_save, self.parent()._parent.canvas.tracks)
+        TrackIO.save(self._fname_save, self._parent._parent.canvas.tracks)
         print(f"Saved tracks as {self._fname_save}")
-        self.parent().mutated(False)
+        self._parent.mutated(False)
 
     def cb_btn_heading(self, checked):
-        self.parent()._parent.canvas.visuals["tracks"].visuals["headings"].visible = checked
+        self._parent._parent.canvas.visuals["tracks"].visuals["headings"].visible = checked
 
     def cb_toggle_vis(self, clicked):
-        for idx, tw in self.parent()._parent.track_edit_bar.track_widgets.items():
+        for idx, tw in self._parent._parent.track_edit_bar.track_widgets.items():
             if tw.btn_visible.isChecked() != self.vis_toggle_state:
                 tw.btn_visible.animateClick()
         self.vis_toggle_state ^= True
@@ -257,7 +257,7 @@ class TrackEditLayoutBar(QWidget):
         self.vbox.addWidget(self.track_widgets[index])
 
         self.track_widgets[index].sig_set_track_vis.connect(
-            self.parent().canvas.visuals["tracks"].slot_set_track_vis
+            self._parent.canvas.visuals["tracks"].slot_set_track_vis
         )
 
         if last:
@@ -299,6 +299,7 @@ class TrackEditItem(QGroupBox):
         QWidget.__init__(self, parent)
         layout = QGridLayout()
         self.index = index
+        self._parent = parent
 
         self.setTitle(f"Track {self.index}")
 
@@ -379,9 +380,9 @@ class TrackEditItem(QGroupBox):
             )
 
     def cb_btn_heading(self, checked):
-        self.parent()._parent.canvas.tracks[self.index].estimate_heading()
-        self.parent()._parent.canvas.on_frame_change()
-        self.parent().mutated()
+        self._parent._parent.canvas.tracks[self.index].estimate_heading()
+        self._parent._parent.canvas.on_frame_change()
+        self._parent.mutated()
 
     def cb_btn_filter(self, checked):
         dlg = FilterDialog(self.index, self)
@@ -391,7 +392,7 @@ class TrackEditItem(QGroupBox):
             print("Cancel")
             return
 
-        canvas = self.parent()._parent.canvas
+        canvas = self._parent._parent.canvas
         order = int(dlg.filter_order.currentText())
         if dlg.filter_pos.isChecked():
             f_cut_hz = float(dlg.freq_pos.text())
@@ -410,7 +411,7 @@ class TrackEditItem(QGroupBox):
                 order=order,
             )
         canvas.on_frame_change()
-        self.parent().mutated()
+        self._parent.mutated()
 
     def cb_btn_visible(self, checked):
         self.sig_set_track_vis.emit(self.index, not checked)
@@ -420,14 +421,14 @@ class TrackEditItem(QGroupBox):
             self.btn_visible.setIcon(self.icon_eye)
 
     def cb_btn_del(self, checked):
-        self.parent()._parent.canvas.tracks.rem_track(self.index)
-        self.parent()._parent.canvas.on_frame_change()
-        self.parent()._parent.setup_track_edit_bar()
-        self.parent().mutated()
+        self._parent._parent.canvas.tracks.rem_track(self.index)
+        self._parent._parent.canvas.on_frame_change()
+        self._parent._parent.setup_track_edit_bar()
+        self._parent.mutated()
 
     def cb_btn_rem(self, checked):
-        idx_sel_a = self.parent()._parent.player_controls._idx_sel_a
-        idx_sel_b = self.parent()._parent.player_controls._idx_sel_b
-        self.parent()._parent.canvas.tracks[self.index].rem_dets(idx_sel_a, idx_sel_b)
-        self.parent()._parent.canvas.on_frame_change()
-        self.parent().mutated()
+        idx_sel_a = self._parent._parent.player_controls._idx_sel_a
+        idx_sel_b = self._parent._parent.player_controls._idx_sel_b
+        self._parent._parent.canvas.tracks[self.index].rem_dets(idx_sel_a, idx_sel_b)
+        self._parent._parent.canvas.on_frame_change()
+        self._parent.mutated()
