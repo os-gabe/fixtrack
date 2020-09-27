@@ -1,6 +1,7 @@
-from PyQt5 import QtCore, QtWidgets
+import os
 
 from fixtrack.frontend.widget import VideoWidget
+from PyQt5 import QtCore, QtWidgets
 
 
 class FixtrackWindow(QtWidgets.QMainWindow):
@@ -10,8 +11,9 @@ class FixtrackWindow(QtWidgets.QMainWindow):
         QtWidgets.QMainWindow.__init__(self)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowTitle(self.title)
+        self.statusBar().showMessage(os.path.split(fname_video)[1])
 
-        bgcolor = [0.15, 0.16, 0.16]
+        bgcolor = [0.09, 0.09, 0.11]
         self.main_widget = VideoWidget(
             self,
             fname_video=fname_video,
@@ -22,6 +24,8 @@ class FixtrackWindow(QtWidgets.QMainWindow):
         self.main_widget.mutated.connect(self.mutated)
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
+
+        # self.main_widget.show_msg.connect(self.statusBar().showMessage)
 
     def fileQuit(self):
         self.close()

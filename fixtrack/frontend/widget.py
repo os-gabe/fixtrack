@@ -11,7 +11,8 @@ class VideoWidget(QtWidgets.QWidget):
     def __init__(
         self, parent, fname_video=None, fname_track=None, range_slider=True, bgcolor="white"
     ):
-        QtWidgets.QWidget.__init__(self)
+        super().__init__(parent)
+        self._parent = parent
 
         self.canvas = VideoCanvas(
             self, fname_video=fname_video, fname_track=fname_track, bgcolor=bgcolor

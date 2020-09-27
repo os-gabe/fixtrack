@@ -1,14 +1,14 @@
 import os
 
 import numpy as np
+from fixtrack.backend.track_io import TrackIO
+from fixtrack.common.utils import color_from_index
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (
     QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QGridLayout,
-    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QRadioButton, QVBoxLayout, QWidget
+    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QRadioButton,
+    QVBoxLayout, QWidget
 )
-
-from fixtrack.backend.track_io import TrackIO
-from fixtrack.common.utils import color_from_index
 
 
 class ShiftPushbutton(QPushButton):
@@ -84,10 +84,12 @@ class TopLevelControls(QWidget):
     fname_interp_l = os.path.join(os.path.dirname(__file__), "icons", "arrow-left-circle.svg")
     fname_interp_r = os.path.join(os.path.dirname(__file__), "icons", "arrow-right-circle.svg")
     fname_heading = os.path.join(os.path.dirname(__file__), "icons", "compass.svg")
+    fname_link = os.path.join(os.path.dirname(__file__), "icons", "link.svg")
 
     def __init__(self, parent):
         QWidget.__init__(self, parent)
         self._parent = parent
+        self.buttons = []
         hl1 = QHBoxLayout()
         hl2 = QHBoxLayout()
         hl3 = QHBoxLayout()
@@ -102,6 +104,7 @@ class TopLevelControls(QWidget):
         self.btn_add_track.clicked.connect(self.cb_add_new_track)
         self.btn_add_track.setFocusPolicy(QtCore.Qt.NoFocus)
         hl1.addWidget(self.btn_add_track)
+        self.buttons.append(self.btn_add_track)
 
         self.btn_toggle_vis = QPushButton(self)
         self.btn_toggle_vis.setToolTip("Show/hide all tracks")
@@ -109,6 +112,7 @@ class TopLevelControls(QWidget):
         self.btn_toggle_vis.clicked.connect(self.cb_toggle_vis)
         self.btn_toggle_vis.setFocusPolicy(QtCore.Qt.NoFocus)
         hl1.addWidget(self.btn_toggle_vis)
+        self.buttons.append(self.btn_toggle_vis)
 
         self.btn_save_tracks = ShiftPushbutton(self)
         self.btn_save_tracks.setToolTip("Save tracks to H5 file")
@@ -117,6 +121,7 @@ class TopLevelControls(QWidget):
         self.btn_save_tracks.shiftClicked.connect(self.cb_btn_save_tracks)
         self.btn_save_tracks.setFocusPolicy(QtCore.Qt.NoFocus)
         hl1.addWidget(self.btn_save_tracks)
+        self.buttons.append(self.btn_save_tracks)
 
         self.btn_undo = QPushButton(self)
         self.btn_undo.setToolTip("Undo last action")
@@ -124,6 +129,7 @@ class TopLevelControls(QWidget):
         self.btn_undo.clicked.connect(self.cb_btn_undo)
         self.btn_undo.setFocusPolicy(QtCore.Qt.NoFocus)
         hl4.addWidget(self.btn_undo)
+        self.buttons.append(self.btn_undo)
 
         self.btn_redo = QPushButton(self)
         self.btn_redo.setToolTip("Redo last action")
@@ -131,6 +137,7 @@ class TopLevelControls(QWidget):
         self.btn_redo.clicked.connect(self.cb_btn_redo)
         self.btn_redo.setFocusPolicy(QtCore.Qt.NoFocus)
         hl4.addWidget(self.btn_redo)
+        self.buttons.append(self.btn_redo)
 
         self.btn_heading = QPushButton(self)
         self.btn_heading.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_heading)))
@@ -140,6 +147,7 @@ class TopLevelControls(QWidget):
         self.btn_heading.setCheckable(True)
         self.btn_heading.setChecked(True)
         hl3.addWidget(self.btn_heading)
+        self.buttons.append(self.btn_heading)
 
         self.btn_interp_l = QPushButton(self)
         self.btn_interp_l.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_interp_l)))
@@ -148,6 +156,7 @@ class TopLevelControls(QWidget):
         self.btn_interp_l.setCheckable(True)
         self.btn_interp_l.setChecked(True)
         hl3.addWidget(self.btn_interp_l)
+        self.buttons.append(self.btn_interp_l)
 
         self.btn_interp_r = QPushButton(self)
         self.btn_interp_r.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_interp_r)))
@@ -156,11 +165,20 @@ class TopLevelControls(QWidget):
         self.btn_interp_r.setCheckable(True)
         self.btn_interp_r.setChecked(True)
         hl3.addWidget(self.btn_interp_r)
+        self.buttons.append(self.btn_interp_r)
 
         vl.addLayout(hl1)
         vl.addLayout(hl2)
         vl.addLayout(hl3)
         vl.addLayout(hl4)
+
+        self.btn_link = QPushButton(self)
+        self.btn_link.setToolTip("Link two tracks")
+        self.btn_link.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_link)))
+        self.btn_link.setCheckable(True)
+        # self.btn_link.clicked.connect(self.self._par)
+        self.btn_link.setFocusPolicy(QtCore.Qt.NoFocus)
+        vl.addWidget(self.btn_link)
 
         self.setLayout(vl)
 
@@ -217,10 +235,14 @@ class TopLevelControls(QWidget):
 
 
 class TrackEditLayoutBar(QWidget):
+    show_msg = QtCore.pyqtSignal(str)
+
     def __init__(self, parent):
         QWidget.__init__(self, parent)
         self._parent = parent
         self.reset()
+
+        self.show_msg.connect(self._parent._parent.statusBar().showMessage)
 
     def idx_selected(self):
         for idx, wid in self.track_widgets.items():
@@ -241,6 +263,7 @@ class TrackEditLayoutBar(QWidget):
     def add_track(self, index, select=False, last=False):
         if self.top_level_ctrls is None:
             self.top_level_ctrls = TopLevelControls(self)
+            self.top_level_ctrls.btn_link.clicked.connect(self.cb_btn_link)
             self.vbox.addWidget(self.top_level_ctrls)
 
         assert index not in self.track_widgets, "Attempting to add duplicate track %s" % (
@@ -267,6 +290,22 @@ class TrackEditLayoutBar(QWidget):
         self.vbox.addStretch()
         self.setLayout(self.vbox)
         self.radio_button_group.setExclusive(True)
+
+    def cb_btn_link(self, checked):
+        for btn in self.top_level_ctrls.buttons:
+            btn.setEnabled(not checked)
+
+        idx_selected = self.idx_selected()
+        self.track_widgets[idx_selected].btn_selected.setEnabled(not checked)
+
+        for idx, item in self.track_widgets.items():
+            for btn in item.buttons:
+                btn.setEnabled(not checked)
+
+        if checked:
+            self.show_msg.emit(f"Linking: Select a track to link to track {idx_selected}")
+        else:
+            self.show_msg.emit("")
 
 
 class TrackEditItem(QGroupBox):
@@ -300,6 +339,7 @@ class TrackEditItem(QGroupBox):
         layout = QGridLayout()
         self.index = index
         self._parent = parent
+        self.buttons = []
 
         self.setTitle(f"Track {self.index}")
 
@@ -315,6 +355,7 @@ class TrackEditItem(QGroupBox):
         self.btn_visible.clicked.connect(self.cb_btn_visible)
         self.btn_visible.setFocusPolicy(QtCore.Qt.NoFocus)
         layout.addWidget(self.btn_visible, r, c, 1, 1, QtCore.Qt.AlignHCenter)
+        self.buttons.append(self.btn_visible)
 
         # Delete track
         c += 1
@@ -324,6 +365,7 @@ class TrackEditItem(QGroupBox):
         self.btn_del.clicked.connect(self.cb_btn_del)
         self.btn_del.setFocusPolicy(QtCore.Qt.NoFocus)
         layout.addWidget(self.btn_del, r, c, 1, 1, QtCore.Qt.AlignHCenter)
+        self.buttons.append(self.btn_del)
 
         # Remove detections
         c += 1
@@ -333,6 +375,7 @@ class TrackEditItem(QGroupBox):
         self.btn_rem.clicked.connect(self.cb_btn_rem)
         self.btn_rem.setFocusPolicy(QtCore.Qt.NoFocus)
         layout.addWidget(self.btn_rem, r, c, 1, 1, QtCore.Qt.AlignHCenter)
+        self.buttons.append(self.btn_rem)
 
         # Estimate heading
         c += 1
@@ -342,6 +385,7 @@ class TrackEditItem(QGroupBox):
         self.btn_heading.clicked.connect(self.cb_btn_heading)
         self.btn_heading.setFocusPolicy(QtCore.Qt.NoFocus)
         layout.addWidget(self.btn_heading, r, c, 1, 1, QtCore.Qt.AlignHCenter)
+        self.buttons.append(self.btn_heading)
 
         # Filter
         c += 1
@@ -351,6 +395,7 @@ class TrackEditItem(QGroupBox):
         self.btn_filter.clicked.connect(self.cb_btn_filter)
         self.btn_filter.setFocusPolicy(QtCore.Qt.NoFocus)
         layout.addWidget(self.btn_filter, r, c, 1, 1, QtCore.Qt.AlignHCenter)
+        self.buttons.append(self.btn_filter)
 
         # Select track
         c = 0
@@ -362,6 +407,7 @@ class TrackEditItem(QGroupBox):
         self.btn_selected.toggled.connect(self.cb_btn_selected)
         self.btn_selected.setChecked(select)
         layout.addWidget(self.btn_selected, r, c, 1, 2, QtCore.Qt.AlignHCenter)
+        self.buttons.append(self.btn_selected)
 
         self.setLayout(layout)
         c = (color_from_index(self.index) * 255).astype(np.uint8)
@@ -379,6 +425,23 @@ class TrackEditItem(QGroupBox):
                 self.groupbox_style % (f"{c[0]:02X}{c[1]:02X}{c[2]:02X}", "normal")
             )
 
+    def check_freq_val(self, dlg):
+        txt = dlg.text()
+        if txt == "":
+            msg = f"No cutoff frequency provided {dlg.text()}"
+            QMessageBox.warning(self, "Filter Error", msg, QMessageBox.Ok)
+            return False
+
+        val = float(txt)
+
+        if (val < dlg.validator().bottom()) or (val > dlg.validator().top()):
+            msg = f"Cutoff frequency {dlg.text()} not in range "
+            msg += f"[{dlg.validator().bottom()},{dlg.validator().top()}]"
+            QMessageBox.warning(self, "Filter Error", msg, QMessageBox.Ok)
+            return False
+
+        return True
+
     def cb_btn_heading(self, checked):
         self._parent._parent.canvas.tracks[self.index].estimate_heading()
         self._parent._parent.canvas.on_frame_change()
@@ -391,10 +454,11 @@ class TrackEditItem(QGroupBox):
         else:
             print("Cancel")
             return
-
         canvas = self._parent._parent.canvas
         order = int(dlg.filter_order.currentText())
         if dlg.filter_pos.isChecked():
+            if not self.check_freq_val(dlg.freq_pos):
+                return
             f_cut_hz = float(dlg.freq_pos.text())
             print(f"Filtering position with order {order} low pass at {f_cut_hz}Hz")
             canvas.tracks[self.index].filter_position(
@@ -403,6 +467,8 @@ class TrackEditItem(QGroupBox):
                 order=order,
             )
         if dlg.filter_heading.isChecked():
+            if not self.check_freq_val(dlg.freq_heading):
+                return
             f_cut_hz = float(dlg.freq_heading.text())
             print(f"Filtering heading with order {order} low pass at {f_cut_hz}Hz")
             canvas.tracks[self.index].filter_heading(
