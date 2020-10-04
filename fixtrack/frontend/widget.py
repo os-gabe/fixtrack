@@ -3,6 +3,7 @@ from PyQt5 import QtCore, QtWidgets
 from fixtrack.frontend.canvas import VideoCanvas
 from fixtrack.frontend.player_head import PlayerHeadWidget
 from fixtrack.frontend.track_controls import TrackEditLayoutBar
+from fixtrack.frontend.track_controls import TopLevelControls
 
 
 class VideoWidget(QtWidgets.QWidget):
@@ -13,6 +14,8 @@ class VideoWidget(QtWidgets.QWidget):
     ):
         super().__init__(parent)
         self._parent = parent
+
+        self.top_level_ctrls = TopLevelControls(self)
 
         self.canvas = VideoCanvas(
             self, fname_video=fname_video, fname_track=fname_track, bgcolor=bgcolor
@@ -35,29 +38,40 @@ class VideoWidget(QtWidgets.QWidget):
         self.scroll_area.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setup_track_edit_bar()
 
-        vlayout = QtWidgets.QVBoxLayout()
-        vlayout.addWidget(self.canvas.native)
+        vl2 = QtWidgets.QVBoxLayout()
+        vl1 = QtWidgets.QVBoxLayout()
+
+        vl2.addWidget(self.canvas.native)
         self.player_controls = PlayerHeadWidget(
             self, self.canvas.video, range_slider=range_slider
         )
-        vlayout.addWidget(self.player_controls)
+        vl2.addWidget(self.player_controls)
 
-        hlayout = QtWidgets.QHBoxLayout()
-        hlayout.addWidget(self.scroll_area)
-        hlayout.addLayout(vlayout)
+        hl1 = QtWidgets.QHBoxLayout()
 
-        self.setLayout(hlayout)
+        vl1.addWidget(self.top_level_ctrls)
+        vl1.addWidget(self.scroll_area)
+
+        hl1.addLayout(vl1)
+        hl1.addLayout(vl2)
+        self.setLayout(hl1)
 
         self.player_controls.sig_frame_change.connect(self.canvas.on_frame_change)
         self.player_controls.sig_frame_change.emit(0)
 
-    def setup_track_edit_bar(self):
+    def setup_track_edit_bar(self, select_last=False):
         self.track_edit_bar = TrackEditLayoutBar(self)
         for i in range(self.canvas.tracks.num_tracks):
-            self.track_edit_bar.add_track(
-                index=i, select=(i == 0), last=(i == (self.canvas.tracks.num_tracks - 1))
-            )
+            last = i == (self.canvas.tracks.num_tracks - 1)
+            select = (i == 0)
+            if select_last:
+                select = last
+            self.track_edit_bar.add_track(index=i, select=select, last=last)
+
         self.scroll_area.setWidget(self.track_edit_bar)
+
+    def idx_selected(self):
+        return self.track_edit_bar.idx_selected()
 
     def keyPressEvent(self, event):
         key = event.key()
@@ -69,15 +83,19 @@ class VideoWidget(QtWidgets.QWidget):
         if key == QtCore.Qt.Key_Q and c0:
             self.parent().fileQuit()
         elif key == QtCore.Qt.Key_S and c0:
-            self.track_edit_bar.top_level_ctrls.btn_save_tracks.animateClick()
+            self.top_level_ctrls.btn_save_tracks.animateClick()
         elif key == QtCore.Qt.Key_S and c1:
-            self.track_edit_bar.top_level_ctrls.btn_save_tracks.animateShiftClick()
+            self.top_level_ctrls.btn_save_tracks.animateShiftClick()
+        elif key == QtCore.Qt.Key_B and c0:
+            self.top_level_ctrls.btn_break.animateClick()
+        elif key == QtCore.Qt.Key_L and c0:
+            self.top_level_ctrls.btn_link.animateClick()
         elif key == QtCore.Qt.Key_N and c0:
-            self.track_edit_bar.top_level_ctrls.btn_add_track.animateClick()
+            self.top_level_ctrls.btn_add_track.animateClick()
         elif key == QtCore.Qt.Key_Z and c0:
-            self.track_edit_bar.top_level_ctrls.btn_undo.animateClick()
+            self.top_level_ctrls.btn_undo.animateClick()
         elif key == QtCore.Qt.Key_Z and c1:
-            self.track_edit_bar.top_level_ctrls.btn_redo.animateClick()
+            self.top_level_ctrls.btn_redo.animateClick()
         elif key == QtCore.Qt.Key_Space:
             self.player_controls.toggle_play()
         elif key == QtCore.Qt.Key_Left:

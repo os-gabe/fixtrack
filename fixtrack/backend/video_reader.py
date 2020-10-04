@@ -1,8 +1,6 @@
 import os
 
 import cv2
-import numpy as np
-
 import fixtrack.common.utils as utils
 
 
@@ -53,5 +51,4 @@ class VideoReader(object):
         elif color_mode == 'RGB':
             cv2.cvtColor(frame, cv2.COLOR_BGR2RGB, frame)
 
-        # return np.flipud(frame)
         return frame

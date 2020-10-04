@@ -186,8 +186,9 @@ class TrackCollectionVisual(VisualCollection):
 
     def on_mouse_press(self, event, img):
         edit_bar = self._parent._parent.track_edit_bar
-        interp_l = edit_bar.top_level_ctrls.btn_interp_l.isChecked()
-        interp_r = edit_bar.top_level_ctrls.btn_interp_r.isChecked()
+        top_level_ctrls = self._parent._parent.top_level_ctrls
+        interp_l = top_level_ctrls.btn_interp_l.isChecked()
+        interp_r = top_level_ctrls.btn_interp_r.isChecked()
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_press"):
                 v.on_mouse_press(event, img)
@@ -225,9 +226,10 @@ class TrackCollectionVisual(VisualCollection):
         self._parent.view.camera.interactive = True
 
     def on_mouse_move(self, event, img):
-        edit_bar = self._parent._parent.track_edit_bar
-        interp_l = edit_bar.top_level_ctrls.btn_interp_l.isChecked()
-        interp_r = edit_bar.top_level_ctrls.btn_interp_r.isChecked()
+        top_level_ctrls = self._parent._parent.top_level_ctrls
+        # edit_bar = self._parent._parent.track_edit_bar
+        interp_l = top_level_ctrls.btn_interp_l.isChecked()
+        interp_r = top_level_ctrls.btn_interp_r.isChecked()
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_move"):
                 v.on_mouse_move(event, img)

@@ -85,6 +85,7 @@ class TopLevelControls(QWidget):
     fname_interp_r = os.path.join(os.path.dirname(__file__), "icons", "arrow-right-circle.svg")
     fname_heading = os.path.join(os.path.dirname(__file__), "icons", "compass.svg")
     fname_link = os.path.join(os.path.dirname(__file__), "icons", "link.svg")
+    fname_break = os.path.join(os.path.dirname(__file__), "icons", "scissors.svg")
 
     def __init__(self, parent):
         QWidget.__init__(self, parent)
@@ -94,6 +95,8 @@ class TopLevelControls(QWidget):
         hl2 = QHBoxLayout()
         hl3 = QHBoxLayout()
         hl4 = QHBoxLayout()
+        hl5 = QHBoxLayout()
+
         vl = QVBoxLayout()
         self.vis_toggle_state = True
         self._fname_save = None
@@ -167,39 +170,56 @@ class TopLevelControls(QWidget):
         hl3.addWidget(self.btn_interp_r)
         self.buttons.append(self.btn_interp_r)
 
-        vl.addLayout(hl1)
-        vl.addLayout(hl2)
-        vl.addLayout(hl3)
-        vl.addLayout(hl4)
-
         self.btn_link = QPushButton(self)
         self.btn_link.setToolTip("Link two tracks")
         self.btn_link.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_link)))
         self.btn_link.setCheckable(True)
         # self.btn_link.clicked.connect(self.self._par)
         self.btn_link.setFocusPolicy(QtCore.Qt.NoFocus)
-        vl.addWidget(self.btn_link)
+        hl5.addWidget(self.btn_link)
+
+        self.btn_break = QPushButton(self)
+        self.btn_break.setToolTip("Break selected track into two at the current frame")
+        self.btn_break.setIcon(QtGui.QIcon(QtGui.QPixmap(self.fname_break)))
+        self.btn_break.setCheckable(False)
+        self.btn_break.clicked.connect(self.cb_btn_break)
+        self.btn_break.setFocusPolicy(QtCore.Qt.NoFocus)
+        hl5.addWidget(self.btn_break)
+
+        vl.addLayout(hl1)
+        vl.addLayout(hl2)
+        vl.addLayout(hl3)
+        vl.addLayout(hl4)
+        vl.addLayout(hl5)
 
         self.setLayout(vl)
 
+    def cb_btn_break(self, checked):
+        idx_track = self._parent.idx_selected()
+        idx_frame = self._parent.canvas.frame_num
+        self._parent.canvas.tracks.break_track(idx_track, idx_frame)
+        self._parent.canvas.on_frame_change()
+        self._parent.setup_track_edit_bar(select_last=True)
+        self._parent.mutated.emit(True)
+
     def cb_btn_redo(self, clicked):
         idx_sel_track = self._parent.idx_selected()
-        self._parent._parent.canvas.tracks.redo(idx_sel_track)
-        self._parent._parent.canvas.on_frame_change()
+        self._parent.canvas.tracks.redo(idx_sel_track)
+        self._parent.canvas.on_frame_change()
 
     def cb_btn_undo(self, clicked):
         idx_sel_track = self._parent.idx_selected()
-        self._parent._parent.canvas.tracks.undo(idx_sel_track)
-        self._parent._parent.canvas.on_frame_change()
+        self._parent.canvas.tracks.undo(idx_sel_track)
+        self._parent.canvas.on_frame_change()
 
     def cb_btn_save_tracks(self, checked, save_as=False):
         # Get filename if necessary
         if (self._fname_save is None) or save_as:
             ext = ".h5"
-            if self._parent._parent.canvas.fname_tracks is not None:
-                savedir = os.path.dirname(self._parent._parent.canvas.fname_tracks)
+            if self._parent.canvas.fname_tracks is not None:
+                savedir = os.path.dirname(self._parent.canvas.fname_tracks)
             else:
-                savedir = os.path.dirname(self._parent._parent.canvas.fname_video)
+                savedir = os.path.dirname(self._parent.canvas.fname_video)
 
             fname, _ = QFileDialog.getSaveFileName(
                 self, "Save File", savedir, f"H5 File (*{ext});;All Files (*)"
@@ -213,25 +233,24 @@ class TopLevelControls(QWidget):
             self._fname_save = fname
 
         # Save the tracks
-        TrackIO.save(self._fname_save, self._parent._parent.canvas.tracks)
+        TrackIO.save(self._fname_save, self._parent.canvas.tracks)
         print(f"Saved tracks as {self._fname_save}")
-        self._parent.mutated(False)
+        self._parent.mutated.emit(False)
 
     def cb_btn_heading(self, checked):
-        self._parent._parent.canvas.visuals["tracks"].visuals["headings"].visible = checked
+        self._parent.canvas.visuals["tracks"].visuals["headings"].visible = checked
 
     def cb_toggle_vis(self, clicked):
-        for idx, tw in self._parent._parent.track_edit_bar.track_widgets.items():
+        for idx, tw in self._parent.track_edit_bar.track_widgets.items():
             if tw.btn_visible.isChecked() != self.vis_toggle_state:
                 tw.btn_visible.animateClick()
         self.vis_toggle_state ^= True
 
     def cb_add_new_track(self, clicked):
-        self._parent._parent.canvas.tracks.add_track()
-        self._parent._parent.canvas.on_frame_change()
-        self._parent._parent.canvas.on_frame_change()
-        self._parent._parent.setup_track_edit_bar()
-        self._parent.mutated()
+        self._parent.canvas.tracks.add_track()
+        self._parent.canvas.on_frame_change()
+        self._parent.setup_track_edit_bar(select_last=True)
+        self._parent.mutated.emit(True)
 
 
 class TrackEditLayoutBar(QWidget):
@@ -248,7 +267,7 @@ class TrackEditLayoutBar(QWidget):
         for idx, wid in self.track_widgets.items():
             if wid.btn_selected.isChecked():
                 return idx
-        assert False, "No track was selected"
+        return None
 
     def mutated(self, b=True):
         self._parent.mutated.emit(b)
@@ -256,15 +275,11 @@ class TrackEditLayoutBar(QWidget):
     def reset(self):
         self.track_widgets = {}
         self.vbox = QVBoxLayout()
-        self.top_level_ctrls = None
         self.radio_button_group = QButtonGroup(self)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
     def add_track(self, index, select=False, last=False):
-        if self.top_level_ctrls is None:
-            self.top_level_ctrls = TopLevelControls(self)
-            self.top_level_ctrls.btn_link.clicked.connect(self.cb_btn_link)
-            self.vbox.addWidget(self.top_level_ctrls)
+        self._parent.top_level_ctrls.btn_link.clicked.connect(self.cb_btn_link)
 
         assert index not in self.track_widgets, "Attempting to add duplicate track %s" % (
             index
@@ -292,13 +307,15 @@ class TrackEditLayoutBar(QWidget):
         self.radio_button_group.setExclusive(True)
 
     def cb_btn_link(self, checked):
-        for btn in self.top_level_ctrls.buttons:
+        for btn in self._parent.top_level_ctrls.buttons:
             btn.setEnabled(not checked)
 
         idx_selected = self.idx_selected()
         self.track_widgets[idx_selected].btn_selected.setEnabled(not checked)
 
         for idx, item in self.track_widgets.items():
+            if not checked:
+                self.track_widgets[idx].btn_selected.setEnabled(not checked)
             for btn in item.buttons:
                 btn.setEnabled(not checked)
 
@@ -407,7 +424,7 @@ class TrackEditItem(QGroupBox):
         self.btn_selected.toggled.connect(self.cb_btn_selected)
         self.btn_selected.setChecked(select)
         layout.addWidget(self.btn_selected, r, c, 1, 2, QtCore.Qt.AlignHCenter)
-        self.buttons.append(self.btn_selected)
+        # self.buttons.append(self.btn_selected)
 
         self.setLayout(layout)
         c = (color_from_index(self.index) * 255).astype(np.uint8)
@@ -424,6 +441,20 @@ class TrackEditItem(QGroupBox):
             self.setStyleSheet(
                 self.groupbox_style % (f"{c[0]:02X}{c[1]:02X}{c[2]:02X}", "normal")
             )
+
+        # Make sure the selected track is visible
+        self._parent._parent.scroll_area.ensureWidgetVisible(self)
+
+        idx_cur = self._parent.idx_selected()
+        idx_new = self.index
+        if (idx_cur is not None) and (idx_cur != idx_new):
+            if self._parent._parent.top_level_ctrls.btn_link.isChecked():
+                print(idx_cur, "=>", idx_new)
+                self._parent._parent.top_level_ctrls.btn_link.animateClick()
+                idx_rem = self._parent._parent.canvas.tracks.link_tracks(idx_cur, idx_new)
+                self._parent.mutated()
+                self._parent.track_widgets[idx_rem].btn_del.setEnabled(True)
+                self._parent.track_widgets[idx_rem].btn_del.animateClick()
 
     def check_freq_val(self, dlg):
         txt = dlg.text()
@@ -487,6 +518,7 @@ class TrackEditItem(QGroupBox):
             self.btn_visible.setIcon(self.icon_eye)
 
     def cb_btn_del(self, checked):
+        print(f"Deleting track {self.index}")
         self._parent._parent.canvas.tracks.rem_track(self.index)
         self._parent._parent.canvas.on_frame_change()
         self._parent._parent.setup_track_edit_bar()

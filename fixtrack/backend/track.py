@@ -311,6 +311,46 @@ class TrackCollection(object):
         assert (idx >= 0) and (idx < self.num_tracks), f"Invalid track index {idx}"
         self.tracks.pop(idx)
 
+    def link_tracks(self, idx_a, idx_b, frame_a, frame_b):
+        idx_a, idx_b = sorted([idx_a, idx_b])
+        # frame_a, frame_b = XXX
+
+        assert (idx_a >= 0) and (idx_a < self.num_tracks), f"Invalid track index {idx_a}"
+        assert (idx_b >= 0) and (idx_b < self.num_tracks), f"Invalid track index {idx_b}"
+
+        olap = self.tracks[idx_a]["det"] & self.tracks[idx_b]["det"]
+
+        ib = self.tracks[idx_b]["det"] & (~self.tracks[idx_a]["det"])
+
+        tnew = self.tracks[idx_a].copy()
+        tnew["pos"][ib] = self.tracks[idx_b]["pos"][ib]
+        tnew["vec"][ib] = self.tracks[idx_b]["vec"][ib]
+        tnew["ctr"][ib] = self.tracks[idx_b]["ctr"][ib]
+        tnew["det"][ib] = self.tracks[idx_b]["det"][ib]
+        tnew["det"][olap] = False
+        tnew["ctr"][olap] = False
+        self.tracks[idx_a] = tnew
+
+        # self.rem_track(idx_b)
+
+        return idx_b
+
+    def break_track(self, idx_track, idx_frame):
+        msg = f"Invalid track index {idx_track}"
+        assert (idx_track >= 0) and (idx_track < self.num_tracks), msg
+        msg = f"Invalid frame index {idx_frame}"
+        assert (idx_frame >= 0) and (idx_frame < self.num_frames), msg
+
+        track_b = self.tracks[idx_track].copy()
+
+        self.tracks[idx_track]["det"][:idx_frame] = False
+        self.tracks[idx_track]["ctr"][:idx_frame] = False
+
+        track_b["det"][idx_frame:] = False
+        track_b["ctr"][idx_frame:] = False
+
+        self.add_track(track_b)
+
     @property
     def num_tracks(self):
         return len(self.tracks)
