@@ -197,10 +197,18 @@ class TopLevelControls(QWidget):
 
         self.setLayout(vl)
 
-    def cb_marker_clicked(self, idx_track, idx_frame):
+    def cb_marker_clicked(self, idx_track, idx_frame, modifiers):
         if not self.btn_link.isChecked():
             self.last_addr = (idx_track, idx_frame)
             self.btn_link.setEnabled(True)
+            # if "Control" in modifiers:
+            #     fp = self._parent.player_controls.range_slider.first_position
+            #     sp = self._parent.player_controls.range_slider.second_position
+
+            #     if (idx_frame < sp) and (idx_frame > fp):
+            #         self._parent.player_controls.range_slider.setSecondPosition(idx_frame)
+            #     if (idx_frame > fp) and (idx_frame > fp):
+            #         self._parent.player_controls.range_slider.setSecondPosition(idx_frame)
             return
 
         assert self.last_addr is not None, "No previously selected track point"

@@ -185,7 +185,7 @@ class TrackCollectionVisual(VisualCollection):
         # print("yyy", self._parent._parent.track_edit_bar.track_widgets.keys())
         self._parent._parent.track_edit_bar.track_widgets[idx_track].btn_selected.animateClick(
         )
-        self._parent._parent.top_level_ctrls.cb_marker_clicked(idx_track, idx_frame)
+        self._parent._parent.top_level_ctrls.cb_marker_clicked(idx_track, idx_frame, modifiers)
         self._parent._parent.player_controls.set_frame_num(idx_frame)
 
     def on_mouse_press(self, event, img):
