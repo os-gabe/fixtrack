@@ -179,9 +179,13 @@ class TrackCollectionVisual(VisualCollection):
     def slot_marker_clicked(
         self, id_clicked, idx_sel, idx_sel_prev, idx_clicked, idx_hover, modifiers
     ):
+        # print("xxx", self._parent._parent.track_edit_bar.track_widgets.keys())
         idx_track, idx_frame = self.track_address_from_vec_idx(idx_clicked)
+        # self._parent._parent.top_level_ctrls.cb_marker_clicked(idx_track, idx_frame)
+        # print("yyy", self._parent._parent.track_edit_bar.track_widgets.keys())
         self._parent._parent.track_edit_bar.track_widgets[idx_track].btn_selected.animateClick(
         )
+        self._parent._parent.top_level_ctrls.cb_marker_clicked(idx_track, idx_frame)
         self._parent._parent.player_controls.set_frame_num(idx_frame)
 
     def on_mouse_press(self, event, img):
