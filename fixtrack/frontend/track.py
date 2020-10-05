@@ -179,15 +179,20 @@ class TrackCollectionVisual(VisualCollection):
     def slot_marker_clicked(
         self, id_clicked, idx_sel, idx_sel_prev, idx_clicked, idx_hover, modifiers
     ):
+        # print("xxx", self._parent._parent.track_edit_bar.track_widgets.keys())
         idx_track, idx_frame = self.track_address_from_vec_idx(idx_clicked)
+        # self._parent._parent.top_level_ctrls.cb_marker_clicked(idx_track, idx_frame)
+        # print("yyy", self._parent._parent.track_edit_bar.track_widgets.keys())
         self._parent._parent.track_edit_bar.track_widgets[idx_track].btn_selected.animateClick(
         )
+        self._parent._parent.top_level_ctrls.cb_marker_clicked(idx_track, idx_frame, modifiers)
         self._parent._parent.player_controls.set_frame_num(idx_frame)
 
     def on_mouse_press(self, event, img):
         edit_bar = self._parent._parent.track_edit_bar
-        interp_l = edit_bar.top_level_ctrls.btn_interp_l.isChecked()
-        interp_r = edit_bar.top_level_ctrls.btn_interp_r.isChecked()
+        top_level_ctrls = self._parent._parent.top_level_ctrls
+        interp_l = top_level_ctrls.btn_interp_l.isChecked()
+        interp_r = top_level_ctrls.btn_interp_r.isChecked()
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_press"):
                 v.on_mouse_press(event, img)
@@ -225,9 +230,10 @@ class TrackCollectionVisual(VisualCollection):
         self._parent.view.camera.interactive = True
 
     def on_mouse_move(self, event, img):
-        edit_bar = self._parent._parent.track_edit_bar
-        interp_l = edit_bar.top_level_ctrls.btn_interp_l.isChecked()
-        interp_r = edit_bar.top_level_ctrls.btn_interp_r.isChecked()
+        top_level_ctrls = self._parent._parent.top_level_ctrls
+        # edit_bar = self._parent._parent.track_edit_bar
+        interp_l = top_level_ctrls.btn_interp_l.isChecked()
+        interp_r = top_level_ctrls.btn_interp_r.isChecked()
         for v in self.visuals.values():
             if hasattr(v, "on_mouse_move"):
                 v.on_mouse_move(event, img)

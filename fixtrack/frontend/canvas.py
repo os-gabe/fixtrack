@@ -113,7 +113,10 @@ class VideoCanvas(CanvasBase):
 
         self.frame_num = 0
 
-        assert self.tracks.num_frames == self.video.num_frames, "Track length != video length"
+        n = min(self.tracks.num_frames, self.video.num_frames)
+        if self.video.num_frames != n:
+            print(f"WARN: mismatched video and track lengths: {self.video.num_frames} != {n}")
+            self.video.num_frames = n
 
         self.view.camera = scene.PanZoomCamera(aspect=1, up="-z")
         self.view.camera.rect = (0, 0, self.video.width, self.video.height)

@@ -119,6 +119,19 @@ class Track(object):
 
         self.add_ctrl_pt(idx)
 
+    def interp_between(self, idx_a, idx_b, det=True):
+        self["pos"][idx_a:idx_b] = np.linspace(
+            self["pos"][idx_a], self["pos"][idx_b], idx_b - idx_a
+        )
+        self["vec"][idx_a:idx_b] = np.linspace(
+            self["vec"][idx_a], self["vec"][idx_b], idx_b - idx_a
+        )
+        self["ctr"][idx_a:idx_b] = False
+        self["det"][idx_a:idx_b] = det
+
+        self["ctr"][idx_a] = True
+        self["ctr"][idx_b] = True
+
     def _next_ctrl_pt(self, idx):
         m = np.where(self["ctr"])[0]
         m = m[m > idx]
@@ -310,6 +323,45 @@ class TrackCollection(object):
     def rem_track(self, idx):
         assert (idx >= 0) and (idx < self.num_tracks), f"Invalid track index {idx}"
         self.tracks.pop(idx)
+
+    def link_tracks(self, idx_a, idx_b, frame_a, frame_b):
+        (frame_a, frame_b), (idx_a,
+                             idx_b) = zip(*sorted(zip((frame_a, frame_b), (idx_a, idx_b))))
+
+        assert (idx_a >= 0) and (idx_a < self.num_tracks), f"Invalid track index {idx_a}"
+        assert (idx_b >= 0) and (idx_b < self.num_tracks), f"Invalid track index {idx_b}"
+
+        self.tracks[idx_a]["det"][frame_a:] = False
+        self.tracks[idx_a]["ctr"][frame_a:] = False
+        self.tracks[idx_b]["det"][:frame_b] = False
+        self.tracks[idx_b]["ctr"][:frame_b] = False
+
+        tmp = self.tracks[idx_a].copy()
+        self.tracks[idx_a][frame_b:] = self.tracks[idx_b][frame_b:]
+        self.tracks[idx_b][:frame_a] = tmp[:frame_a]
+
+        if frame_a != frame_b:
+            self.tracks[idx_a].interp_between(frame_a, frame_b)
+
+        self.rem_track(idx_b)
+
+        return idx_b
+
+    def break_track(self, idx_track, idx_frame):
+        msg = f"Invalid track index {idx_track}"
+        assert (idx_track >= 0) and (idx_track < self.num_tracks), msg
+        msg = f"Invalid frame index {idx_frame}"
+        assert (idx_frame >= 0) and (idx_frame < self.num_frames), msg
+
+        track_b = self.tracks[idx_track].copy()
+
+        self.tracks[idx_track]["det"][:idx_frame] = False
+        self.tracks[idx_track]["ctr"][:idx_frame] = False
+
+        track_b["det"][idx_frame:] = False
+        track_b["ctr"][idx_frame:] = False
+
+        self.add_track(track_b)
 
     @property
     def num_tracks(self):

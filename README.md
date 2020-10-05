@@ -7,7 +7,7 @@ Python > 3.6. This code has been extensively tested on Ubuntu 18.04 but can also
 ### Quick Start
 If you do not plan on doing any development on the app itself and just want to use it then you can install it in a single line using pip with one of the two commands (depending on how you have your github credentials setup):
 ```/bash
-$ pip install git+ssh://git@github.com/os-gabe/fixtrack.git
+$ pip install git+ssh://<username>@github.com/os-gabe/fixtrack.git
 ```
 or
 ```/bash
@@ -19,7 +19,7 @@ After installing you can launch the app using:
 ```/bash
 $ fixtrack_app.py <path-to-video-file>
 ```
-and if you already have a track H5 file pass it in using `--trqck` like this:
+and if you already have a track H5 file pass it in using `--track` like this:
 ```/bash
 $ fixtrack_app.py <path-to-video-file> --track <path-to-track-file>
 ```
