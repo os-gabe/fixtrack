@@ -350,16 +350,19 @@ class TrackCollection(object):
     def break_track(self, idx_track, idx_frame):
         msg = f"Invalid track index {idx_track}"
         assert (idx_track >= 0) and (idx_track < self.num_tracks), msg
+
         msg = f"Invalid frame index {idx_frame}"
         assert (idx_frame >= 0) and (idx_frame < self.num_frames), msg
 
         track_b = self.tracks[idx_track].copy()
 
-        self.tracks[idx_track]["det"][:idx_frame] = False
-        self.tracks[idx_track]["ctr"][:idx_frame] = False
+        self.tracks[idx_track]["det"][idx_frame:] = False
+        self.tracks[idx_track]["ctr"][idx_frame:] = False
+        self.tracks[idx_track]["pos"][idx_frame:] = [0, 0, 0]
 
-        track_b["det"][idx_frame:] = False
-        track_b["ctr"][idx_frame:] = False
+        track_b["det"][:idx_frame] = False
+        track_b["ctr"][:idx_frame] = False
+        track_b["pos"][:idx_frame] = [0, 0, 0]
 
         self.add_track(track_b)
 

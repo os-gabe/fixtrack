@@ -15,13 +15,7 @@ class TrackCollectionVisual(VisualCollection):
 
     sig_frame_change = QtCore.pyqtSignal(int)
 
-    def __init__(
-        self,
-        tracks,
-        parent=None,
-        enabled=True,
-        visible=True,
-    ):
+    def __init__(self, tracks, parent=None, enabled=True, visible=True):
         super(TrackCollectionVisual,
               self).__init__(parent=parent, enabled=enabled, visible=visible)
         self.tracks = tracks
@@ -179,10 +173,7 @@ class TrackCollectionVisual(VisualCollection):
     def slot_marker_clicked(
         self, id_clicked, idx_sel, idx_sel_prev, idx_clicked, idx_hover, modifiers
     ):
-        # print("xxx", self._parent._parent.track_edit_bar.track_widgets.keys())
         idx_track, idx_frame = self.track_address_from_vec_idx(idx_clicked)
-        # self._parent._parent.top_level_ctrls.cb_marker_clicked(idx_track, idx_frame)
-        # print("yyy", self._parent._parent.track_edit_bar.track_widgets.keys())
         self._parent._parent.track_edit_bar.track_widgets[idx_track].btn_selected.animateClick(
         )
         self._parent._parent.top_level_ctrls.cb_marker_clicked(idx_track, idx_frame, modifiers)
@@ -231,7 +222,6 @@ class TrackCollectionVisual(VisualCollection):
 
     def on_mouse_move(self, event, img):
         top_level_ctrls = self._parent._parent.top_level_ctrls
-        # edit_bar = self._parent._parent.track_edit_bar
         interp_l = top_level_ctrls.btn_interp_l.isChecked()
         interp_r = top_level_ctrls.btn_interp_r.isChecked()
         for v in self.visuals.values():
