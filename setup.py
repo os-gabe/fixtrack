@@ -8,7 +8,7 @@ with open("requirements.txt", "r") as fh:
 
 setuptools.setup(
     name="fixtrack",
-    version="0.2",
+    version="0.3",
     author="Gabriel Hein",
     author_email="heingab@gmail.com",
     description="A python package for working with fish tracks",
